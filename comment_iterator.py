@@ -49,7 +49,7 @@ class CommentIterator:
             self.driver.quit()
             raise StopIteration
         #current_comment = self.driver.find_element(By.CSS_SELECTOR, self.comment_selector)
-        self.current_comment = WebDriverWait(self.driver, 5).until(
+        self.current_comment = WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_selector))
         )
         self.comment_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.commenter_selector)
@@ -59,7 +59,7 @@ class CommentIterator:
         #self.driver.execute_script('window.scrollTo(0, document.body.scrollHeight);')
         self.comment_count += 1
         y_pos = self.current_comment.location_once_scrolled_into_view['y'] - 100
-        ActionChains(self.driver).scroll_by_amount(0, y_pos).pause(2).perform()
+        ActionChains(self.driver).scroll_by_amount(0, y_pos).pause(0.5).perform()
         self.amount_scrolled += y_pos
         #print(self.comment_count)
         comment_content = self.current_comment.text
@@ -78,7 +78,7 @@ class CommentIterator:
 comments = []
 
 with open('comments.json', 'w') as comment_json:
-    for comment in CommentIterator('https://www.youtube.com/watch?v=mqxHzWJlqps', 200):
+    for comment in CommentIterator('https://www.youtube.com/watch?v=mqxHzWJlqps', 500):
         comments.append(comment)
     json_comments = json.dumps({'comments': comments})
     comment_json.write(json_comments)
