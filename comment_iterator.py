@@ -27,7 +27,7 @@ class CommentIterator:
         #video = self.driver.find_element(By.CSS_SELECTOR, '#movie_player')
         #video.click()
         y_pos = title.location_once_scrolled_into_view['y'] - 100
-        ActionChains(self.driver).scroll_by_amount(0,y_pos).pause(2).perform()
+        ActionChains(self.driver).scroll_by_amount(0,y_pos).perform()
         self.amount_scrolled += y_pos
         #comment_number = WebDriverWait(self.driver, 5).until(
         #    EC.presence_of_element_located((By.CSS_SELECTOR, comment_number_selector))
@@ -59,10 +59,10 @@ class CommentIterator:
         #self.driver.execute_script('window.scrollTo(0, document.body.scrollHeight);')
         self.comment_count += 1
         y_pos = self.current_comment.location_once_scrolled_into_view['y'] - 100
-        ActionChains(self.driver).scroll_by_amount(0, y_pos).pause(0.5).perform()
+        ActionChains(self.driver).scroll_by_amount(0, y_pos).perform()
         self.amount_scrolled += y_pos
         #print(self.comment_count)
-        comment_content = self.current_comment.text
+        comment_content = self.current_comment.text.strip()
         resulting_comment = {
             'commenter': name,
             'main comment': comment_content,
