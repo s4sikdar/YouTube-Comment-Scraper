@@ -1,3 +1,6 @@
+'''
+This module provides an interface to iterate over Youtube Comments.
+'''
 from selenium import webdriver
 from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
@@ -6,79 +9,225 @@ from selenium.webdriver.support import expected_conditions as EC
 import re
 import time
 import json
+from selenium.common.exceptions import NoSuchElementException
 
 class CommentIterator:
+    '''
+        CommentIterator(youtube_video_url, comment_limit=10, regex=None) -> Iterator
+        A class that provides an interface to iterate over youtube comments.
+        When iterating over an instance of the CommentIterator class, information for one comment
+        thread is gathered and returned to you in the form of a dictionary. The dictionary has the following
+        keys:
+            'commenter' - the channel name of the commenter
+            'comment content' - the text content of the main comment, with all leading and trailing whitespace stripped
+            'link' - the link to the YouTube comment itself. If the link cannot be obtained, the value is an empty string
+            'children' - a list of all children comments. Each list item contains a dictionary with the keys 'commenter', 'comment content' and 'link'
+        If the regex parameter is not None, then None can possibly be returned for a comment thread.
+        Parameters:
+            youtube_video_url - the link to the exact video. The link must be valid and this interface is not responsible
+                                for handling exceptions regarding videos not available, or videos that are private
+            comment_limit - the maximum number of comments to iterate over. This refers to the maximum number of comment threads,
+                            and the number does not include comment replies. The default is 10 comment threads.
+            regex - an optional regular expression that will match text in a comment or its replies. If the comment thread has no replies,
+                    the regular expression is tested against the main comment, and if it finds a match, then the comment information is returned
+                    back. If the comment has replies, the regular expression is tested against the replies, and the information is returned if at
+                    least one reply (or the original comment) matches the regular expression. If there are no matches, None is returned.
+    '''
     def __init__(self, youtube_url, comment_limit=10, regex=None):
-        self.comment_count = 0
+        self.comment_thread_count = 0
+        self.reply_count = 0
         self.limit = comment_limit
         self.driver = webdriver.Chrome()
-        self.driver.get(youtube_url)
-        self.driver.maximize_window()
         self.title_selector = '#title > h1 > yt-formatted-string'
         self.current_comment = None
         self.comment_channel_name = None
         self.comment_link = None
+        self.comment_replies_button = None
+        self.current_reply = None
+        self.reply_link = None
+        self.reply_channel_name = None
+        self.regex_pattern = regex
         self.amount_scrolled = 0
+        self.parent_comment = None
+        self.parent_comment_pos = 0
+        # Comment selectors
         comment_number_selector = '#count > yt-formatted-string > span'
+        self.comment_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #content-text'
+        self.commenter_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #author-text > span'
+        self.comment_link_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #header-author > yt-formatted-string > a'
+        self.replies_button_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #more-replies > yt-button-shape > button > yt-touch-feedback-shape > div > div.yt-spec-touch-feedback-shape__fill'
+        self.comment_reply_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child({(self.reply_count + 1)}) #content-text'
+        self.comment_reply_channel = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child({(self.reply_count + 1)}) #author-text > span'
+        self.comment_reply_link = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child({(self.reply_count + 1)}) #header-author > yt-formatted-string > a'
+        self.more_replies_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #replies #button > ytd-button-renderer > yt-button-shape > button > yt-touch-feedback-shape > div > div.yt-spec-touch-feedback-shape__fill'
+        self.first_reply_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child(1) #content-text'
+        self.current_comment_json = {}
+        # Startup steps
+        self.driver.get(youtube_url)
+        self.driver.maximize_window()
         title = WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, self.title_selector))
         )
-        #print(title.text)
-        #video = self.driver.find_element(By.CSS_SELECTOR, '#movie_player')
-        #video.click()
         y_pos = title.location_once_scrolled_into_view['y'] - 100
         ActionChains(self.driver).scroll_by_amount(0,y_pos).perform()
         self.amount_scrolled += y_pos
-        #comment_number = WebDriverWait(self.driver, 5).until(
-        #    EC.presence_of_element_located((By.CSS_SELECTOR, comment_number_selector))
-        #)
-        #comment_number_location = comment_number.location
-        #ActionChains(self.driver).scroll_to_element(title).pause(5).perform()
-        #print(comment_number.text)
-        self.comment_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_count + 1)}) #content-text'
-        self.commenter_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_count + 1)}) #author-text > span'
-        self.comment_link_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_count + 1)}) #header-author > yt-formatted-string > a'
-        #print(self.comment_selector)
 
+    def get_attribute(self, element, attribute):
+        '''
+            get_attribute(self, element, attribute) -> Str
+            a method to return the attribute from the element, returns an
+            empty string if any exceptions are raised
+        '''
+        try:
+            result = element.get_attribute(attribute)
+        except:
+            return ''
+
+    def element_exists(self, css_selector):
+        '''
+            element_exists(self, css_selector) -> Bool
+            a method to check if a css selector exists, returns True if so, False otherwise
+        '''
+        try:
+            self.driver.find_element(By.CSS_SELECTOR, css_selector)
+        except NoSuchElementException:
+            return False
+        return True
+
+    def reset_elements(self):
+        '''
+            reset_eleemnts(self) -> None
+            resets all of the attributes used for finding elements to be None, and the dictionary for
+            keeping comment information to be an empty dictinary
+        '''
+        self.current_comment = None
+        self.comment_channel_name = None
+        self.comment_link = None
+        self.comment_replies_button = None
+        self.current_reply = None
+        self.reply_link = None
+        self.reply_channel_name = None
+        self.parent_comment = None
+        self.current_comment_json = {}
+
+    def update_selectors(self, count, child_count):
+        '''
+            update_selectors(self, count, child_count) -> None
+            updates the values of the necessary selectors for iterating through comments. It uses count and child count
+            for the current comment thread count and the current reply count respectively (i.e. self.comment_thread_count
+            would be used for count, and self.reply_count would be used for child_count).
+        '''
+        self.comment_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #content-text'
+        self.commenter_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #author-text > span'
+        self.comment_link_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #header-author > yt-formatted-string > a'
+        self.replies_button_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #more-replies > yt-button-shape > button > yt-touch-feedback-shape > div > div.yt-spec-touch-feedback-shape__fill'
+        self.more_replies_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #replies #button > ytd-button-renderer > yt-button-shape > button > yt-touch-feedback-shape > div > div.yt-spec-touch-feedback-shape__fill'
+        self.first_reply_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child(1) #content-text'
+        self.comment_reply_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child({child_count}) #content-text'
+        self.comment_reply_channel = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child({child_count}) #author-text > span'
+        self.comment_reply_link = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child({child_count}) #header-author > yt-formatted-string > a'
+
+    def iterate_child(self):
+        '''
+            iterate_child(self) -> (anyOf Dict None)
+            Iterates through the replies of a youtube comment, aggregates the comment into a dictionary, and returns it.
+        '''
+        self.first_reply_comment = WebDriverWait(self.driver, 20).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, self.first_reply_selector))
+        )
+        more_comments = self.element_exists(self.comment_reply_selector) or self.element_exists(self.more_replies_selector)
+        while more_comments:
+            self.current_reply = self.driver.find_element(By.CSS_SELECTOR, self.comment_reply_selector)
+            self.reply_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.comment_reply_channel)
+            name = self.reply_channel_name.text.strip()[1:]
+            self.reply_link = self.driver.find_element(By.CSS_SELECTOR, self.comment_reply_link)
+            reply_text = self.current_reply.text.strip()
+            comment_link = ''
+            y_pos = self.current_reply.location_once_scrolled_into_view['y'] - 100
+            ActionChains(self.driver).scroll_by_amount(0, y_pos).perform()
+            #self.amount_scrolled += y_pos
+            comment_link = self.get_attribute(self.reply_link, 'href')
+            reply_json = {
+                'commenter': name,
+                'comment content': reply_text,
+                'link': comment_link,
+            }
+            self.current_comments_json['children'].append(reply_json)
+            self.reply_count += 1
+            self.update_selectors((self.comment_thread_count + 1), (self.reply_count + 1))
+            if not self.element_exists(self.comment_reply_selector):
+                if self.element_exists(self.more_replies_selector):
+                    more_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.more_replies_selector)
+                    more_replies_button.click()
+                    next_comment = WebDriverWait(self.driver,20).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_reply_selector))
+                    )
+            #if self.reply_count == 10:
+            #    pdb.set_trace()
+            more_comments = self.element_exists(self.comment_reply_selector) or self.element_exists(self.more_replies_selector)
+        self.reply_count = 0
+        self.comment_thread_count += 1
+        self.update_selectors((self.comment_thread_count + 1), (self.reply_count + 1))
+        resulting_comment = self.current_comments_json
+        ActionChains(self.driver).scroll_to_element(self.parent_comment).perform()
+        self.comment_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.replies_button_selector)
+        replies.click()
+        self.reset_elements()
+        return resulting_comment
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        if self.comment_count == self.limit:
+        if self.comment_thread_count == self.limit:
             self.driver.quit()
             raise StopIteration
-        #current_comment = self.driver.find_element(By.CSS_SELECTOR, self.comment_selector)
-        self.current_comment = WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_selector))
-        )
-        self.comment_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.commenter_selector)
-        name = self.comment_channel_name.text.strip()[1:]
-        self.comment_link = self.driver.find_element(By.CSS_SELECTOR, self.comment_link_selector)
-        comment_link = self.comment_link.get_attribute('href')
-        #self.driver.execute_script('window.scrollTo(0, document.body.scrollHeight);')
-        self.comment_count += 1
-        y_pos = self.current_comment.location_once_scrolled_into_view['y'] - 100
-        ActionChains(self.driver).scroll_by_amount(0, y_pos).perform()
-        self.amount_scrolled += y_pos
-        #print(self.comment_count)
-        comment_content = self.current_comment.text.strip()
-        resulting_comment = {
-            'commenter': name,
-            'main comment': comment_content,
-            'link': comment_link
-        }
-        #print(comment_content)
-        self.comment_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_count + 1)}) #content-text'
-        self.commenter_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_count + 1)}) #author-text > span'
-        self.comment_link = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_count + 1)}) #header-author > yt-formatted-string > a'
-        #return comment_content
-        return resulting_comment
+        else:
+            self.current_comment = WebDriverWait(self.driver, 20).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_selector))
+            )
+            self.comment_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.commenter_selector)
+            name = self.comment_channel_name.text.strip()[1:]
+            self.comment_link = self.driver.find_element(By.CSS_SELECTOR, self.comment_link_selector)
+            comment_link = self.get_attribute(self.comment_link, 'href')
+            comment_content = self.current_comment.text.strip()
+            resulting_comment = {
+                'commenter': name,
+                'comment content': comment_content,
+                'link': comment_link,
+                'children': []
+            }
+            y_pos = self.current_comment.location_once_scrolled_into_view['y'] - 100
+            ActionChains(self.driver).scroll_by_amount(0, y_pos).perform()
+            self.amount_scrolled += y_pos
+            if self.element_exists(self.replies_button_selector):
+                self.parent_comment = self.current_comment
+                self.parent_comment_pos = self.amount_scrolled
+                self.current_comments_json = resulting_comment
+                self.comment_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.replies_button_selector)
+                self.comment_replies_button.click()
+                return self.iterate_child()
+            else:
+                self.comment_thread_count += 1
+                self.update_selectors((self.comment_thread_count + 1), (self.reply_count + 1))
+                if self.regex_pattern:
+                    comment_match = re.search(self.regex_pattern, resulting_comment['main comment'], re.IGNORECASE)
+                    if comment_match:
+                        if EC.presence_of_element_located((By.CSS_SELECTOR, self.replies_button_selector)):
+                            self.thread_has_pattern = True
+                            return None
+                        else:
+                            return resulting_comment
+                    else:
+                        return None
+                return resulting_comment
+
 
 comments = []
 
 with open('comments.json', 'w') as comment_json:
-    for comment in CommentIterator('https://www.youtube.com/watch?v=mqxHzWJlqps', 500):
-        comments.append(comment)
+    for comment in CommentIterator('https://www.youtube.com/watch?v=mqxHzWJlqps'):
+        if comment:
+            comments.append(comment)
     json_comments = json.dumps({'comments': comments})
     comment_json.write(json_comments)
