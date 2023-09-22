@@ -15,4 +15,12 @@ source ./{directory name of your choice for the virtual environment}/Scripts/act
 ```
 pip install -r requirements.txt
 ```
-6) Open `comment_iterator.py` and change the constructor for CommentIterator to be the link of a YouTube video you want scraped.
+6) Open `comment_iterator.py` and change the constructor for CommentIterator to be the link of a YouTube video you want scraped as shown below.
+```
+with open('comments.json', 'w') as comment_json:
+    for comment in CommentIterator('https://www.youtube.com/watch?v=sp1rkgx_aik'):
+        if comment:
+            comments.append(comment)
+    json_comments = json.dumps({'comments': comments})
+    comment_json.write(json_comments)
+```
