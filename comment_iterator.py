@@ -50,6 +50,7 @@ class CommentIterator:
         self.reply_channel_name = None
         self.regex_pattern = regex
         self.amount_scrolled = 0
+        self.thread_has_pattern = False
         self.parent_comment = None
         self.parent_comment_pos = 0
         # Comment selectors
@@ -114,6 +115,7 @@ class CommentIterator:
         self.comment_channel_name = None
         self.comment_link = None
         self.comment_replies_button = None
+        self.thread_has_pattern = False
         self.current_reply = None
         self.reply_link = None
         self.reply_channel_name = None
@@ -162,6 +164,10 @@ class CommentIterator:
                 'comment content': reply_text,
                 'link': comment_link,
             }
+            if self.regex_pattern and (not self.thread_has_pattern):
+                comment_match = re.search(self.regex_pattern, reply_text, re.IGNORECASE)
+                if comment_match:
+                    self.thread_has_pattern = True
             self.current_comments_json['children'].append(reply_json)
             self.reply_count += 1
             self.total_comments_parsed += 1
@@ -169,7 +175,7 @@ class CommentIterator:
             if not self.element_exists(self.comment_reply_selector):
                 if self.element_exists(self.more_replies_selector):
                     more_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.more_replies_selector)
-                    ActionChains(self.driver).move_to_element(more_replies_button).click(more_replies_button).perform()
+                    ActionChains(self.driver).move_to_element(more_replies_button).pause(0.5).click(more_replies_button).perform()
                     next_comment = WebDriverWait(self.driver,20).until(
                         EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_reply_selector))
                     )
@@ -179,9 +185,15 @@ class CommentIterator:
         resulting_comment = self.current_comments_json
         ActionChains(self.driver).scroll_to_element(self.parent_comment).perform()
         self.comment_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.less_replies_button_selector)
-        ActionChains(self.driver).scroll_to_element(self.comment_replies_button).click(self.comment_replies_button).perform()
+        ActionChains(self.driver).scroll_to_element(self.comment_replies_button).move_to_element(self.comment_replies_button).pause(0.5).click(self.comment_replies_button).perform()
         self.update_selectors((self.comment_thread_count + 1), (self.reply_count + 1))
+        comment_thread_has_regex = self.thread_has_pattern
         self.reset_elements()
+        if self.regex_pattern:
+            if comment_thread_has_regex:
+                return resulting_comment
+            else:
+                return None
         return resulting_comment
 
     def __iter__(self):
@@ -220,18 +232,18 @@ class CommentIterator:
                 self.current_comments_json = resulting_comment
                 self.comment_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.replies_button_selector)
                 ActionChains(self.driver).move_to_element(self.comment_replies_button).pause(0.5).click(self.comment_replies_button).perform()
+                if self.regex_pattern and (not self.thread_has_pattern):
+                    comment_match = re.search(self.regex_pattern, resulting_comment['comment content'], re.IGNORECASE)
+                    if comment_match:
+                        self.thread_has_pattern = True
                 return self.iterate_child()
             else:
                 self.comment_thread_count += 1
                 self.update_selectors((self.comment_thread_count + 1), (self.reply_count + 1))
                 if self.regex_pattern:
-                    comment_match = re.search(self.regex_pattern, resulting_comment['main comment'], re.IGNORECASE)
+                    comment_match = re.search(self.regex_pattern, resulting_comment['comment content'], re.IGNORECASE)
                     if comment_match:
-                        if EC.presence_of_element_located((By.CSS_SELECTOR, self.replies_button_selector)):
-                            self.thread_has_pattern = True
-                            return None
-                        else:
-                            return resulting_comment
+                        return resulting_comment
                     else:
                         return None
                 return resulting_comment
@@ -240,7 +252,7 @@ class CommentIterator:
 comments = []
 
 with open('comments.json', 'w') as comment_json:
-    for comment in CommentIterator('https://www.youtube.com/watch?v=sp1rkgx_aik'):
+    for comment in CommentIterator('https://www.youtube.com/watch?v=sp1rkgx_aik', regex=r'greek'):
         if comment:
             comments.append(comment)
     json_comments = json.dumps({'comments': comments})
