@@ -10,7 +10,8 @@ import re
 import time
 import json
 from selenium.common.exceptions import NoSuchElementException
-import pdb
+
+
 
 class CommentIterator:
     '''
@@ -249,11 +250,5 @@ class CommentIterator:
                 return resulting_comment
 
 
-comments = []
 
-with open('comments.json', 'w') as comment_json:
-    for comment in CommentIterator('https://www.youtube.com/watch?v=sp1rkgx_aik', regex=r'greek'):
-        if comment:
-            comments.append(comment)
-    json_comments = json.dumps({'comments': comments})
-    comment_json.write(json_comments)
+
