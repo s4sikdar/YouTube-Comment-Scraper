@@ -1,3 +1,3 @@
 #Virtual environment directory
-dependencies/**
+virtual_env_dependencies/**
 comments.json
