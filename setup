@@ -6,13 +6,13 @@ directories_matching=$(find ./ -type d -name "virtual_env_dependencies")
 length=$(echo ${directories_matching} | wc -c)
 if [ ${length} -gt 1 ]
 then
-	source ./virtual_env_dependencies/Scripts/activate
+	source ./virtual_env_dependencies/Scripts/activate 2> /dev/null
 	if [ ${?} -ne 0 ]
 	then
-		echo "Existing virtual_env_dependencies directory found that is not a virutal environment directory."
+		echo "Existing virtual_env_dependencies directory found that is not a virtual environment directory."
 		echo "This script will delete it, install a new virtual environment with directory name virtual_env_dependencies, and install dependencies."
 		rm -r ./virtual_env_dependencies/
-		python -m venv ./virtual_env_dependencies
+		/usr/bin/env python -m venv ./virtual_env_dependencies
 		source ./virtual_env_dependencies/Scripts/activate
 		/usr/bin/env python -m pip install --upgrade pip --quiet
 		/usr/bin/env python -m pip install -r requirements.txt --quiet
@@ -23,7 +23,7 @@ then
 		lines_difference=$(wc -l ${diff_output} | awk '{ print $1 }')
 		if [ ${lines_difference} -gt 0 ]
 		then
-			echo "Existing package dependencies were found that differ from the dependencies in requirements.txt"
+			echo "Existing package installations were found that differ from the dependencies in requirements.txt"
 			echo "Removing all existing dependencies and installing the dependencies in requirements.txt"
 			/usr/bin/env python -m pip install --upgrade pip --quiet
 			/usr/bin/env python -m pip uninstall -r ${tempfile} -y --quiet
@@ -33,7 +33,7 @@ then
 	fi
 else
 	echo "No existing virtual environment found. Creating a new virtual environment and installing the dependencies in requirements.txt"
-	python -m venv ./virtual_env_dependencies
+	/usr/bin/env python -m venv ./virtual_env_dependencies
 	source ./virtual_env_dependencies/Scripts/activate
 	/usr/bin/env python -m pip install --upgrade pip --quiet
 	/usr/bin/env python -m pip install -r requirements.txt --quiet
