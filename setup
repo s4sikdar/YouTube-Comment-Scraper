@@ -1,19 +1,89 @@
 #!/usr/bin/env bash
 
+virtual_env_name="virtual_env_dependencies"
+
+function usage() {
+cat << EOF
+Usage:
+./setup [-n <virtual environment name> | -h]
+OR
+source setup [-n <virtual environment name>] # DO NOT send the -h flag when running source with this script. Your terminal session will close immediately.
+
+Description:
+This script the setup for the virtual envirnoment to install all dependencies in an isolated environment.
+The script first looks for the recommended virtual environment directory (which can be specified as a command line argument),
+and if it exists, it compares the dependencies installed with the dependencies in the requirements.txt file. If the dependencies
+are not matching, all existing dependencies are uninstalled and the dependencies specified in requirements.txt are installed instead.
+
+************************************************************IMPORTANT****************************************************************
+
+YOU MUST HAVE A requirements.txt FILE THAT CONTAINS THE OUTPUT OF "pip freeze" IN YOUR DIRECTORY. OTHERWISE THIS SCRIPT WILL THROW
+UNEXPECTED ERRORS. THEY MAY CHANGE YOUR LOCAL ENVIRONMENT. THIS IS A FAIR WARNING.
+
+*************************************************************************************************************************************
+
+*******************************************************Important suggestion**********************************************************
+
+It is recommended to run the second version (source setup) to so that the virtual environment is loaded
+into your terminal, and you can run the script from there. Otherwise you have to run the command below (for git bash at least).
+source ./\${DIRNAME}/Scripts/activate
+
+*************************************************************************************************************************************
+
+Arguments supported:
+-h	-help	--help		Display this help message.
+-n	-name	--name		Specify the virtual environment directory name. By default this is "virtual_env_dependencies".
+
+Examples:
+./setup -h 			# Prints this help message
+./setup -name=dirname 		# sets virtual environment directory name to be "dirname"
+./setup --name=dirname		# same as above
+./setup -n dirname		# same as above
+./setup				# sets the virtual environment directory to be the default: "virtual_env_dependencies" (and continues from there)
+EOF
+}
+
+if [ ${#} -ne 0 ]
+then
+	options=$(getopt -l "help,name:" -o "hn:" -a -- "${@}")
+	if [ ${?} -ne 0 ]
+	then
+		echo "Incorrect invocation of the script. Printing help message below and exiting with an error code of 1."
+		usage
+		exit 1
+	fi
+	eval set -- "${options}"
+	while true
+	do
+	case "${1}" in
+		-h|--help)
+			usage
+			exit 0
+			break
+			;;
+		-n|--name)
+			shift
+			virtual_env_name="${1}"
+			break
+			;;
+	esac
+	done
+fi
+
 tempfile=$(mktemp)
 diff_output=$(mktemp)
-directories_matching=$(find ./ -type d -name "virtual_env_dependencies")
+directories_matching=$(find ./ -type d -name "${virtual_env_name}")
 length=$(echo ${directories_matching} | wc -c)
 if [ ${length} -gt 1 ]
 then
-	source ./virtual_env_dependencies/Scripts/activate 2> /dev/null
+	source ./${virtual_env_name}/Scripts/activate 2> /dev/null
 	if [ ${?} -ne 0 ]
 	then
-		echo "Existing virtual_env_dependencies directory found that is not a virtual environment directory."
-		echo "This script will delete it, install a new virtual environment with directory name virtual_env_dependencies, and install dependencies."
-		rm -r ./virtual_env_dependencies/
-		/usr/bin/env python -m venv ./virtual_env_dependencies
-		source ./virtual_env_dependencies/Scripts/activate
+		echo "Existing \"${virtual_env_name}\" directory found that is not a virtual environment directory."
+		echo "This script will delete it, install a new virtual environment with directory name \"${virtual_env_name}\", and install dependencies."
+		rm -r "./${virtual_env_name}"
+		/usr/bin/env python -m venv "./${virtual_env_name}"
+		source ./${virtual_env_name}/Scripts/activate
 		/usr/bin/env python -m pip install --upgrade pip --quiet
 		/usr/bin/env python -m pip install -r requirements.txt --quiet
 		echo "Requirements have been installed."
@@ -32,9 +102,9 @@ then
 		fi
 	fi
 else
-	echo "No existing virtual environment found. Creating a new virtual environment and installing the dependencies in requirements.txt"
-	/usr/bin/env python -m venv ./virtual_env_dependencies
-	source ./virtual_env_dependencies/Scripts/activate
+	echo "No existing virtual environment found. Creating a new virtual environment named \"${virtual_env_name}\" and installing the dependencies in requirements.txt"
+	/usr/bin/env python -m venv "./${virtual_env_name}"
+	source ./${virtual_env_name}/Scripts/activate
 	/usr/bin/env python -m pip install --upgrade pip --quiet
 	/usr/bin/env python -m pip install -r requirements.txt --quiet
 	echo "Requirements have been installed."
