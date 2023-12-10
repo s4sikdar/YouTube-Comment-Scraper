@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 
+# Color constants
+YELLOW='\033[0;33m'       # Yellow
+NC='\033[0m' 		  # No Color
+GREEN='\033[0;32m'        # Green
+
+# Variables used in the script
 virtual_env_name="virtual_env_dependencies"
 no_caching=false
+color=false
 
+# Print the below help message
 function usage() {
 cat << EOF
 Usage:
@@ -41,15 +49,42 @@ Arguments supported:
 					with the --no-cache-dir flag as well. If you specify this, then the script will take more time and cause
 					significantly more network usage.
 
+-c	-color		--color		Print color messages. Print messages in yellow or green (yellow means some adjustment is being made,
+					green means the packages have all been installed successfully). This is disabled by default.
+
 Examples:
-./setup -h 			# Prints this help message
-./setup -ename=dirname 		# sets virtual environment directory name to be "dirname"
-./setup --ename=dirname		# same as above
-./setup -e dirname		# same as above
-./setup				# sets the virtual environment directory to be the default: "virtual_env_dependencies" (and continues from there)
+./setup -h 					# Prints this help message
+./setup -ename=dirname 				# sets virtual environment directory name to be "dirname"
+./setup --ename=dirname				# same as above
+./setup -e dirname				# same as above
+./setup -n					# disable caching
+./setup -nocache				# disable caching
+./setup --nocache				# disable caching
+./setup --color					# print color messages
+./setup -color					# print color messages
+./setup -c					# print color messages
+./setup -c --nocache --ename=dependencies	# disable caching, sets the virtual environment directory name to be "dependencies", and enables color messaging
+./setup						# sets the virtual environment directory to be the default: "virtual_env_dependencies" (and continues from there)
 EOF
 }
 
+# Print text in color. One argument is allowed, which is the color code.
+function print_color() {
+	if [ ${#} -eq 1 ]
+	then
+		echo -en "${1}"
+	else
+		echo -en "${NC}"
+	fi
+	if [ "${color}" = false ]
+	then
+		echo -en "${NC}"
+	fi
+	cat -
+	echo -en "${NC}"
+}
+
+# Upgrade pip when an upgrade is available, --no-cache-dir is run to disable caching if that argument is specified
 function upgrade_pip() {
 	if [ "${1}" = true ]
 	then
@@ -59,6 +94,7 @@ function upgrade_pip() {
 	fi
 }
 
+# Install dependencies with pip install. --no-cache-dir is run to disable caching if that argument is specified
 function install_dependencies() {
 	if [ "${1}" = true ]
 	then
@@ -70,7 +106,7 @@ function install_dependencies() {
 
 if [ ${#} -ne 0 ]
 then
-	options=$(getopt -l "help,nocache,ename:" -o "hne:" -a -- "${@}")
+	options=$(getopt -l "help,nocache,color,ename:" -o "hnce:" -a -- "${@}")
 	if [ ${?} -ne 0 ]
 	then
 		echo "Incorrect invocation of the script. Printing help message below and exiting with an error code of 1."
@@ -89,14 +125,20 @@ then
 		-e|--ename)
 			shift
 			virtual_env_name="${1}"
-			break
 			;;
 		-n|--nocache)
-			shift
 			no_caching=true
+			;;
+		-c|--color)
+			color=true
+			;;
+		--)
+			shift
 			break
 			;;
+
 	esac
+	shift
 	done
 fi
 
@@ -109,22 +151,22 @@ then
 	source ./${virtual_env_name}/Scripts/activate 2> /dev/null
 	if [ ${?} -ne 0 ]
 	then
-		echo "Existing \"${virtual_env_name}\" directory found that is not a virtual environment directory."
-		echo "This script will delete it, install a new virtual environment with directory name \"${virtual_env_name}\", and install dependencies."
+		echo "Existing \"${virtual_env_name}\" directory found that is not a virtual environment directory." | print_color "${YELLOW}"
+		echo "This script will delete it, install a new virtual environment with directory name \"${virtual_env_name}\", and install dependencies." | print_color "${YELLOW}"
 		rm -r "./${virtual_env_name}"
 		/usr/bin/env python -m venv "./${virtual_env_name}"
 		source ./${virtual_env_name}/Scripts/activate
 		upgrade_pip "${no_caching}"
 		install_dependencies "${no_caching}"
-		echo "Requirements have been installed."
+		echo "Requirements have been installed." | print_color "${GREEN}"
 	else
 		/usr/bin/env python -m pip freeze > ${tempfile}
 		diff ${tempfile} ./requirements.txt -ZEbB > ${diff_output}
 		lines_difference=$(wc -l ${diff_output} | awk '{ print $1 }')
 		if [ ${lines_difference} -gt 0 ]
 		then
-			echo "Existing package installations were found that differ from the dependencies in requirements.txt"
-			echo "Removing all existing dependencies and installing the dependencies in requirements.txt"
+			echo "Existing package installations were found that differ from the dependencies in requirements.txt" | print_color "${YELLOW}"
+			echo "Removing all existing dependencies and installing the dependencies in requirements.txt" | print_color "${YELLOW}"
 			upgrade_pip "${no_caching}"
 			/usr/bin/env python -m pip uninstall -r ${tempfile} -y --quiet
 			if [ "${no_caching}" = true ]
@@ -132,14 +174,14 @@ then
 				pip cache purge 2> /dev/null
 			fi
 			install_dependencies "${no_caching}"
-			echo "Requirements have been installed."
+			echo "Requirements have been installed." | print_color "${GREEN}"
 		fi
 	fi
 else
-	echo "No existing virtual environment found. Creating a new virtual environment named \"${virtual_env_name}\" and installing the dependencies in requirements.txt"
+	echo "No existing virtual environment found. Creating a new virtual environment named \"${virtual_env_name}\" and installing the dependencies in requirements.txt" | print_color "${YELLOW}"
 	/usr/bin/env python -m venv "./${virtual_env_name}"
 	source ./${virtual_env_name}/Scripts/activate
 	upgrade_pip "${no_caching}"
 	install_dependencies "${no_caching}"
-	echo "Requirements have been installed."
+	echo "Requirements have been installed." | print_color "${GREEN}"
 fi
