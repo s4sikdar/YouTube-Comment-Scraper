@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 virtual_env_name="virtual_env_dependencies"
+no_caching=false
 
 function usage() {
 cat << EOF
@@ -31,21 +32,45 @@ source ./\${DIRNAME}/Scripts/activate
 *************************************************************************************************************************************
 
 Arguments supported:
--h	-help	--help		Display this help message.
--n	-name	--name		Specify the virtual environment directory name. By default this is "virtual_env_dependencies".
+-h	-help		--help		Display this help message.
+
+-e	-ename		--ename		Specify the virtual environment directory name. By default this is "virtual_env_dependencies".
+
+-n	-nocache	--nocache	Does not use cached packages when managing dependencies. This installs packages with the --no-cache-dir
+					flag, and purges the cache with "pip cache purge" when uninstalling dependencies. This will upgrade pip
+					with the --no-cache-dir flag as well. If you specify this, then the script will take more time and cause
+					significantly more network usage.
 
 Examples:
 ./setup -h 			# Prints this help message
-./setup -name=dirname 		# sets virtual environment directory name to be "dirname"
-./setup --name=dirname		# same as above
-./setup -n dirname		# same as above
+./setup -ename=dirname 		# sets virtual environment directory name to be "dirname"
+./setup --ename=dirname		# same as above
+./setup -e dirname		# same as above
 ./setup				# sets the virtual environment directory to be the default: "virtual_env_dependencies" (and continues from there)
 EOF
 }
 
+function upgrade_pip() {
+	if [ "${1}" = true ]
+	then
+		/usr/bin/env python -m pip install --upgrade pip --quiet --no-cache-dir
+	else
+		/usr/bin/env python -m pip install --upgrade pip --quiet
+	fi
+}
+
+function install_dependencies() {
+	if [ "${1}" = true ]
+	then
+		/usr/bin/env python -m pip install -r requirements.txt --quiet --no-cache-dir
+	else
+		/usr/bin/env python -m pip install -r requirements.txt --quiet
+	fi
+}
+
 if [ ${#} -ne 0 ]
 then
-	options=$(getopt -l "help,name:" -o "hn:" -a -- "${@}")
+	options=$(getopt -l "help,nocache,ename:" -o "hne:" -a -- "${@}")
 	if [ ${?} -ne 0 ]
 	then
 		echo "Incorrect invocation of the script. Printing help message below and exiting with an error code of 1."
@@ -61,9 +86,14 @@ then
 			exit 0
 			break
 			;;
-		-n|--name)
+		-e|--ename)
 			shift
 			virtual_env_name="${1}"
+			break
+			;;
+		-n|--nocache)
+			shift
+			no_caching=true
 			break
 			;;
 	esac
@@ -84,8 +114,8 @@ then
 		rm -r "./${virtual_env_name}"
 		/usr/bin/env python -m venv "./${virtual_env_name}"
 		source ./${virtual_env_name}/Scripts/activate
-		/usr/bin/env python -m pip install --upgrade pip --quiet
-		/usr/bin/env python -m pip install -r requirements.txt --quiet
+		upgrade_pip "${no_caching}"
+		install_dependencies "${no_caching}"
 		echo "Requirements have been installed."
 	else
 		/usr/bin/env python -m pip freeze > ${tempfile}
@@ -95,9 +125,13 @@ then
 		then
 			echo "Existing package installations were found that differ from the dependencies in requirements.txt"
 			echo "Removing all existing dependencies and installing the dependencies in requirements.txt"
-			/usr/bin/env python -m pip install --upgrade pip --quiet
+			upgrade_pip "${no_caching}"
 			/usr/bin/env python -m pip uninstall -r ${tempfile} -y --quiet
-			/usr/bin/env python -m pip install -r requirements.txt --quiet
+			if [ "${no_caching}" = true ]
+			then
+				pip cache purge 2> /dev/null
+			fi
+			install_dependencies "${no_caching}"
 			echo "Requirements have been installed."
 		fi
 	fi
@@ -105,7 +139,7 @@ else
 	echo "No existing virtual environment found. Creating a new virtual environment named \"${virtual_env_name}\" and installing the dependencies in requirements.txt"
 	/usr/bin/env python -m venv "./${virtual_env_name}"
 	source ./${virtual_env_name}/Scripts/activate
-	/usr/bin/env python -m pip install --upgrade pip --quiet
-	/usr/bin/env python -m pip install -r requirements.txt --quiet
+	upgrade_pip "${no_caching}"
+	install_dependencies "${no_caching}"
 	echo "Requirements have been installed."
 fi
