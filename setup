@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Color constants
+# Color constants used for printing messages in color.
 YELLOW='\033[0;33m'       # Yellow
 NC='\033[0m' 		  # No Color
 GREEN='\033[0;32m'        # Green
@@ -12,11 +12,13 @@ color=false
 
 # Print the below help message
 function usage() {
-cat << EOF
+	# cat << EOF prints out text and stops printing the moment it matches the text found after '<<'
+	cat << EOF
 Usage:
-./setup [-n <virtual environment name> | -h]
+./setup [-e|-ename|--ename <virtual environment name>] [-n|-nocache|--nocache] [-c|-color|--color] [-h|-help|--help]
 OR
-source setup [-n <virtual environment name>] # DO NOT send the -h flag when running source with this script. Your terminal session will close immediately.
+source setup [-e|-ename|--ename <virtual environment name>] [-n|-nocache|--nocache] [-c|-color|--color]
+# DO NOT send the -h flag when running source with this script. Your terminal session will close immediately.
 
 Description:
 This script the setup for the virtual envirnoment to install all dependencies in an isolated environment.
@@ -40,7 +42,7 @@ source ./\${DIRNAME}/Scripts/activate
 *************************************************************************************************************************************
 
 Arguments supported:
--h	-help		--help		Display this help message.
+-h	-help		--help		Display this help message and exit immediately if this is specified.
 
 -e	-ename		--ename		Specify the virtual environment directory name. By default this is "virtual_env_dependencies".
 
@@ -69,6 +71,8 @@ EOF
 }
 
 # Print text in color. One argument is allowed, which is the color code.
+# The text you want to change in color should be passed in as input to this function
+# (i.e. through redirection - e.g. 'echo "Hello World" | print_color "${GREEN}"')
 function print_color() {
 	if [ ${#} -eq 1 ]
 	then
@@ -104,6 +108,8 @@ function install_dependencies() {
 	fi
 }
 
+# The part of the script that parses arguments passed into the command line. The script uses getopt,
+# so you should try checking to see if getopt is available in your terminal by typing 'getopt --help'.
 if [ ${#} -ne 0 ]
 then
 	options=$(getopt -l "help,nocache,color,ename:" -o "hnce:" -a -- "${@}")
@@ -144,10 +150,15 @@ fi
 
 tempfile=$(mktemp)
 diff_output=$(mktemp)
+# Use the find command to search for the directory with the virtual environment directory name. Use the length of the directories matching to
+# determine if the directory exists.
 directories_matching=$(find ./ -type d -name "${virtual_env_name}")
 length=$(echo ${directories_matching} | wc -c)
 if [ ${length} -gt 1 ]
 then
+	# Directory was found, so try activating the script to start the virtual environment. If it doesn't work (non-zero return code), then
+	# remove this directory and install a new virtual environment with the same directory name. If it works, then check the existing package
+	# dependencies.
 	source ./${virtual_env_name}/Scripts/activate 2> /dev/null
 	if [ ${?} -ne 0 ]
 	then
@@ -160,6 +171,8 @@ then
 		install_dependencies "${no_caching}"
 		echo "Requirements have been installed." | print_color "${GREEN}"
 	else
+		# Check the current package dependency listing and compare it with requirements.txt using the diff command to determine if there
+		# are any differences in package installed (i.e. different version, different packages installed, etc.)
 		/usr/bin/env python -m pip freeze > ${tempfile}
 		diff ${tempfile} ./requirements.txt -ZEbB > ${diff_output}
 		lines_difference=$(wc -l ${diff_output} | awk '{ print $1 }')
@@ -178,10 +191,17 @@ then
 		fi
 	fi
 else
-	echo "No existing virtual environment found. Creating a new virtual environment named \"${virtual_env_name}\" and installing the dependencies in requirements.txt" | print_color "${YELLOW}"
+	# If the length variable is 0, then there is no existing directory with the given virtual environment name. Create a virtual environment
+	# with this directory name and install all of the dependencies.
+	echo "No existing virtual environment found with directory name \"${virtual_env_name}\"." | print_color "${YELLOW}"
+	echo "Creating a new virtual environment with directory name \"${virtual_env_name}\" and installing the dependencies listed in requirements.txt" | print_color "${YELLOW}"
 	/usr/bin/env python -m venv "./${virtual_env_name}"
 	source ./${virtual_env_name}/Scripts/activate
 	upgrade_pip "${no_caching}"
 	install_dependencies "${no_caching}"
 	echo "Requirements have been installed." | print_color "${GREEN}"
 fi
+
+# Remove the tempfiles we create
+rm ${tempfile}
+rm ${diff_output}
