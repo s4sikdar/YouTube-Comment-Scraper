@@ -9,6 +9,7 @@ GREEN='\033[0;32m'        # Green
 virtual_env_name="virtual_env_dependencies"
 no_caching=false
 color=false
+filename="requirements.txt"
 
 # Print the below help message
 function usage() {
@@ -53,6 +54,9 @@ Arguments supported:
 
 -c	-color		--color		Print color messages. Print messages in yellow or green (yellow means some adjustment is being made,
 					green means the packages have all been installed successfully). This is disabled by default.
+
+-f	-filename	--filename	Specify the filename that has the listed dependencies you install. This filename should be the output
+					of "pip freeze". By default it is "requirements.txt".
 
 Examples:
 ./setup -h 					# Prints this help message
@@ -102,9 +106,9 @@ function upgrade_pip() {
 function install_dependencies() {
 	if [ "${1}" = true ]
 	then
-		/usr/bin/env python -m pip install -r requirements.txt --quiet --no-cache-dir
+		/usr/bin/env python -m pip install -r ${filename} --quiet --no-cache-dir
 	else
-		/usr/bin/env python -m pip install -r requirements.txt --quiet
+		/usr/bin/env python -m pip install -r ${filename} --quiet
 	fi
 }
 
@@ -131,6 +135,14 @@ then
 		-e|--ename)
 			shift
 			virtual_env_name="${1}"
+			;;
+		-f|--filename)
+			shift
+			filename="${1}"
+			if [ ! -f "${filename}" ]
+				echo "${filename} does not exist. Using \"requirements.txt\"" | print_color "${YELLOW}"
+				filename="requirements.txt"
+			fi
 			;;
 		-n|--nocache)
 			no_caching=true
@@ -178,8 +190,8 @@ then
 		lines_difference=$(wc -l ${diff_output} | awk '{ print $1 }')
 		if [ ${lines_difference} -gt 0 ]
 		then
-			echo "Existing package installations were found that differ from the dependencies in requirements.txt" | print_color "${YELLOW}"
-			echo "Removing all existing dependencies and installing the dependencies in requirements.txt" | print_color "${YELLOW}"
+			echo "Existing package installations were found that differ from the dependencies in ${filename}" | print_color "${YELLOW}"
+			echo "Removing all existing dependencies and installing the dependencies in ${filename}" | print_color "${YELLOW}"
 			upgrade_pip "${no_caching}"
 			/usr/bin/env python -m pip uninstall -r ${tempfile} -y --quiet
 			if [ "${no_caching}" = true ]
@@ -194,7 +206,7 @@ else
 	# If the length variable is 0, then there is no existing directory with the given virtual environment name. Create a virtual environment
 	# with this directory name and install all of the dependencies.
 	echo "No existing virtual environment found with directory name \"${virtual_env_name}\"." | print_color "${YELLOW}"
-	echo "Creating a new virtual environment with directory name \"${virtual_env_name}\" and installing the dependencies listed in requirements.txt" | print_color "${YELLOW}"
+	echo "Creating a new virtual environment with directory name \"${virtual_env_name}\" and installing the dependencies listed in ${filename}" | print_color "${YELLOW}"
 	/usr/bin/env python -m venv "./${virtual_env_name}"
 	source ./${virtual_env_name}/Scripts/activate
 	upgrade_pip "${no_caching}"
