@@ -140,6 +140,7 @@ then
 			shift
 			filename="${1}"
 			if [ ! -f "${filename}" ]
+			then
 				echo "${filename} does not exist. Using \"requirements.txt\"" | print_color "${YELLOW}"
 				filename="requirements.txt"
 			fi
