@@ -1,4 +1,5 @@
 #Virtual environment directory
 virtual_env_dependencies/**
 iterators/__pycache__/**
+__pycache__/**
 comments.json
