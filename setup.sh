@@ -14,7 +14,7 @@ filename="requirements.txt"
 # Print the below help message
 function usage() {
 	# cat << EOF prints out text and stops printing the moment it matches the text found after '<<'
-	cat << EOF
+	cat << ENDMSG
 Usage:
 ./setup [-e|-ename|--ename <virtual environment name>] [-n|-nocache|--nocache] [-c|-color|--color] [-h|-help|--help]
 OR
@@ -71,7 +71,7 @@ Examples:
 ./setup -c					# print color messages
 ./setup -c --nocache --ename=dependencies	# disable caching, sets the virtual environment directory name to be "dependencies", and enables color messaging
 ./setup						# sets the virtual environment directory to be the default: "virtual_env_dependencies" (and continues from there)
-EOF
+ENDMSG
 }
 
 # Print text in color. One argument is allowed, which is the color code.
