@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 '''
 Python script to make GET requests to JSON endpoints containing urls for the latest stable builds of chrome webdriver.
 If the script can get a url, it then tries to download the zip file with the chrome webdriver inside of it and saves it locally.

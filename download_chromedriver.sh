@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+source ./correct_python.sh
 
 # Function to get the operating system. Credit to the following link,
 # as I got the function from here: https://gist.github.com/prabirshrestha/3080525
@@ -79,7 +80,7 @@ function get_latest_chromedriver() {
 			exit 2
 			;;
 	esac
-	zip_fname=$(./get_webdriver.py --platform="${platform}" 2> /dev/null)
+	zip_fname=$(use_correct_python_version ./get_webdriver.py --platform="${platform}" 2> /dev/null)
 	if [ -n ${zip_fname} ]
 	then
 		# unzip -ql ${zip_fname}
