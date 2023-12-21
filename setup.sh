@@ -92,13 +92,46 @@ function print_color() {
 	echo -en "${NC}"
 }
 
+# Some users have "python" pointing directly to python3, and they don't actually have python3 as a command on their machine.
+# Other users have "python3" pointing to python3 as a command, but not "python" as a command (or if python is installed, it
+# points to python2, which will not work).
+function use_correct_python_version() {
+	python_version=0
+	/usr/bin/env python --version &> /dev/null
+	if [[ ${?} -eq 0 ]]
+	then
+		python_version=$(/usr/bin/env python --version 2> /dev/null | awk '{ print $NF }' 2> /dev/null | awk -F . '{ print $1 }' 2> /dev/null)
+		if [[ ${python_version} -eq 3 ]]
+		then
+			/usr/bin/env python "${@}"
+		else
+			/usr/bin/env python3 --version &> /dev/null
+			if [[ ${?} -eq 0 ]]
+			then
+				/usr/bin/env python3 "${@}"
+			else
+				echo "Python not installed." &>2
+				exit 2
+			fi
+		fi
+	else
+		/usr/bin/env python3 --version &> /dev/null
+		if [[ ${?} -eq 0 ]]
+		then
+			/usr/bin/env python3 "${@}"
+		else
+			echo "Python not installed." &>2
+		fi
+	fi
+}
+
 # Upgrade pip when an upgrade is available, --no-cache-dir is run to disable caching if that argument is specified
 function upgrade_pip() {
 	if [ "${1}" = true ]
 	then
-		/usr/bin/env python -m pip install --upgrade pip --quiet --no-cache-dir
+		use_correct_python_version -m pip install --upgrade pip --quiet --no-cache-dir
 	else
-		/usr/bin/env python -m pip install --upgrade pip --quiet
+		use_correct_python_version -m pip install --upgrade pip --quiet
 	fi
 }
 
@@ -106,9 +139,9 @@ function upgrade_pip() {
 function install_dependencies() {
 	if [ "${1}" = true ]
 	then
-		/usr/bin/env python -m pip install -r ${filename} --quiet --no-cache-dir
+		use_correct_python_version -m pip install -r ${filename} --quiet --no-cache-dir
 	else
-		/usr/bin/env python -m pip install -r ${filename} --quiet
+		use_correct_python_version -m pip install -r ${filename} --quiet
 	fi
 }
 
@@ -178,7 +211,7 @@ then
 		echo "Existing \"${virtual_env_name}\" directory found that is not a virtual environment directory." | print_color "${YELLOW}"
 		echo "This script will delete it, install a new virtual environment with directory name \"${virtual_env_name}\", and install dependencies." | print_color "${YELLOW}"
 		rm -r "./${virtual_env_name}"
-		/usr/bin/env python -m venv "./${virtual_env_name}"
+		use_correct_python_version -m venv "./${virtual_env_name}"
 		source ./${virtual_env_name}/Scripts/activate
 		upgrade_pip "${no_caching}"
 		install_dependencies "${no_caching}"
@@ -186,7 +219,7 @@ then
 	else
 		# Check the current package dependency listing and compare it with requirements.txt using the diff command to determine if there
 		# are any differences in package installed (i.e. different version, different packages installed, etc.)
-		/usr/bin/env python -m pip freeze > ${tempfile}
+		use_correct_python_version -m pip freeze > ${tempfile}
 		diff ${tempfile} ./requirements.txt -ZEbB > ${diff_output}
 		lines_difference=$(wc -l ${diff_output} | awk '{ print $1 }')
 		if [ ${lines_difference} -gt 0 ]
@@ -194,21 +227,22 @@ then
 			echo "Existing package installations were found that differ from the dependencies in ${filename}" | print_color "${YELLOW}"
 			echo "Removing all existing dependencies and installing the dependencies in ${filename}" | print_color "${YELLOW}"
 			upgrade_pip "${no_caching}"
-			/usr/bin/env python -m pip uninstall -r ${tempfile} -y --quiet
+			use_correct_python_version -m pip uninstall -r ${tempfile} -y --quiet
 			if [ "${no_caching}" = true ]
 			then
-				pip cache purge 2> /dev/null
+				use_correct_python_version -m pip cache purge 2> /dev/null
 			fi
 			install_dependencies "${no_caching}"
 			echo "Requirements have been installed." | print_color "${GREEN}"
 		fi
+		upgrade_pip "${no_caching}"
 	fi
 else
 	# If the length variable is 0, then there is no existing directory with the given virtual environment name. Create a virtual environment
 	# with this directory name and install all of the dependencies.
 	echo "No existing virtual environment found with directory name \"${virtual_env_name}\"." | print_color "${YELLOW}"
 	echo "Creating a new virtual environment with directory name \"${virtual_env_name}\" and installing the dependencies listed in ${filename}" | print_color "${YELLOW}"
-	/usr/bin/env python -m venv "./${virtual_env_name}"
+	use_correct_python_version -m venv "./${virtual_env_name}"
 	source ./${virtual_env_name}/Scripts/activate
 	upgrade_pip "${no_caching}"
 	install_dependencies "${no_caching}"
