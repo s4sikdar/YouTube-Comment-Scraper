@@ -1,94 +1,7 @@
 #!/usr/bin/env bash
 
 source ./correct_python.sh
-
-# Function to get the operating system. Credit to the following link,
-# as I got the function from here: https://gist.github.com/prabirshrestha/3080525
-function get_os() {
-	os_name=$(uname -o | tr '[:upper:]' '[:lower:]')
-	case ${os_name} in
-		linux*)
-			echo "linux"
-			;;
-		darwin*)
-			echo "darwin"
-			;;
-		msys*|cygwin*|mingw*)
-			echo "windows"
-			;;
-		nt|win*)
-			echo "windows"
-			;;
-		*)
-			echo "unknown"
-			;;
-	esac
-}
-
-
-# The function to get the latest stable version of chrome driver based on the following link below:
-# https://googlechromelabs.github.io/chrome-for-testing/ . First we try to use the python script to
-# try and download the binary file. If it fails, we try the ducktape hack in this function to hardcode the
-# url and make a curl request from there.
-function get_platform() {
-	platform=''
-	os_name=$(get_os)
-	# run uname -m to get the machine of the platform, and use the tr command to guarantee everything is lowercase
-	machine_hardware_name=$(uname -m | tr '[:upper:]' '[:lower:]')
-	tempfile=$(mktemp)
-	# machine hardware names for bit32 hardware
-	declare -a bit32_hardware_names
-	bit32_hardware_names[0]='i686'
-	bit32_hardware_names[1]='i386'
-	case ${os_name} in
-		linux*)
-			if [ "${machine_hardware_name}" = 'x86_64' ]
-			then
-				platform='linux64'
-			else
-				echo "You are using linux on a machine that is not 64-bit. You must have a 64-bit machine to have a linux chromedriver. Exiting with an error code of 2." 1>&2
-				rm ${tempfile}
-				exit 2
-			fi
-			;;
-		darwin*)
-			if  [ "${machine_hardware_name}" = 'arm64' ]
-			then
-				platform='mac-arm64'
-			elif [ "${machine_hardware_name}" = 'x86_64' ]
-			then
-				platform='mac-x64'
-			else
-				echo "You are using a Mac OS on a machine that is not an arm-64 machine or a 64-bit machine." 1>&2
-				echo "You must have one of the two to use the linux chromedriver on a Mac OS. Exiting with an error code or 2." 1>&2
-				rm ${tempfile}
-				exit 2
-			fi
-			;;
-		windows*)
-			# If machine hardware name is one of the entries in the bit32_hardware_names array, this is true
-			if  [ "${machine_hardware_name}" = "${bit32_hardware_names[0]}" -o "${machine_hardware_name}" = "${bit32_hardware_names[1]}" ]
-			then
-				platform='win32'
-			elif [ "${machine_hardware_name}" = 'x86_64' ]
-			then
-				platform='win64'
-			else
-				echo "You are using Windows on an unknown machine that does not support chromedriver. Exiting with an error code of 2" 1>&2
-				rm ${tempfile}
-				exit 2
-			fi
-			;;
-		*)
-			echo "Unknown operating system being used that does not support chromedriver. Exiting with an error code of 2." 1>&2
-			rm ${tempfile}
-			exit 2
-			;;
-	esac
-	echo ${platform}
-	rm ${tempfile}
-}
-
+source ./find_os_and_platform.sh
 
 
 # The function uses the python script to download the latest chromedriver binary available for google chrome. From there it
@@ -178,7 +91,6 @@ function download_and_move_chromedriver_locally() {
 	# path (if applicable), and the zipfile.
 	if [[ ${num_fields_seprated_by_slash} -gt 1 ]]
 	then
-		#cat ${error_output_file}
 		# In the special case that we have the executable name being the same as the directory name, we create a placeholder
 		# directory, copy the executable there, remove the directory with the same name as the executable, then copy the executable
 		# out of the placeholder directory and into ~/bin/. Then we remove the placeholder directory.
@@ -202,7 +114,6 @@ function download_and_move_chromedriver_locally() {
 			cp "${chromedriver_executable_path}" "./${executable_name}"
 			rm -r "./${directory_name}/"
 		fi
-		#rm ${error_output_file}
 	fi
 	rm "${zip_file_name}"
 }
