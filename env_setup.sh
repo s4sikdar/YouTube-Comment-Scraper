@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-source ./correct_python.sh
+source ./setup_scripts/correct_python.sh
 
 # Color constants used for printing messages in color.
 YELLOW='\033[0;33m'       # Yellow

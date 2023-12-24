@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-source ./correct_python.sh
-source ./find_os_and_platform.sh
+source ./setup_scripts/correct_python.sh
+source ./setup_scripts/find_os_and_platform.sh
 
 
 # The function uses the python script to download the latest chromedriver binary available for google chrome. From there it
@@ -173,17 +173,17 @@ function find_and_install_chromedriver() {
 			# and download the latest one, because it is either not up to date, or something went wrong.
 			if [ -z "${local_chromedriver_version}" -o "${local_chromedriver_version}" != "${latest_stable_version}" ]
 			then
-				echo "Local chromedriver version is not the latest stable version or the version could not be gathered. In both cases, something is wrong."
-				echo "Downloading the latest version of chromedriver and removing the existing file with the same name as the executable name."
+				echo "Local chromedriver version is not the latest stable version, or the version could not be gathered from the file, or the latest stable version cannot be gathered."
+				echo "In all cases, something is wrong. Downloading the latest version of chromedriver and removing the existing file with the same name as the executable name."
 				rm "${executable_name}"
 				download_and_move_chromedriver_locally "${python_script_path}" "${executable_name}" "${zip_file_name}"
 			fi
 		else
-			echo "${HOME}/bin/ directory exists in ${HOME} but there is no \"chromedriver.exe\" binary executable. Installing it now."
+			echo "bin/ directory exists in ${HOME} but there is no \"${executable_name}\" binary executable in bin/. Downloading and installing it now."
 			download_and_move_chromedriver_locally "${python_script_path}" "${executable_name}" "${zip_file_name}"
 		fi
 	else
-		echo "bin directory is not there. Making a bin directory in ${HOME}"
+		echo "bin directory is not there. Making a bin directory in ${HOME} and adding the chromedriver binary executable there."
 		mkdir bin
 		cd bin/
 		download_and_move_chromedriver_locally "${python_script_path}" "${executable_name}" "${zip_file_name}"
