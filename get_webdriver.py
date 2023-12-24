@@ -11,6 +11,7 @@ import requests
 import json
 import argparse
 import sys
+import os
 
 
 def hardcode_url_download(platform):
@@ -107,7 +108,8 @@ def main():
             'A python script to download the most recent stable chromedriver binary for a specific platform which is passed in.'
             'The script makes a request to https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json for the info.'
             'If the script successfully finds the url in the returned json, then the script tries to download the name based on everything in the endpoint after '
-            'the last slash.'
+            'the last slash. The script will download the file in the bin directory inside the home directory. If this directory does not exist, create it and add '
+            'the chromedriver zip file inside it.'
         )
     )
     parser.add_argument(
@@ -146,10 +148,16 @@ def main():
                     )
                     exit(1)
                 else:
-                    # Write the response payload to the zipfile (same name as the name indicated by everything after the last slash in the url)
+                    # Write the response payload to the zipfile in the user's ~/bin/ directory (zipfile name same as the name indicated by everything after the last slash in the url)
+                    home_path = os.path.expanduser('~')
+                    os.chdir(home_path)
+                    try:
+                        os.mkdir('bin')
+                        os.chdir('bin')
+                    except FileExistsError:
+                        os.chdir('bin')
                     with open(zipfile_name, 'wb') as zipfile:
-                        for zipfile_block in zipfile_payload.iter_content(chunk_size=256):
-                            zipfile.write(zipfile_block)
+                        zipfile.write(zipfile_payload.content)
                         print(zipfile_name)
                         exit(0)
 
