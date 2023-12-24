@@ -29,6 +29,7 @@ function use_correct_python_version() {
 			/usr/bin/env python3 "${@}"
 		else
 			echo "Python not installed." &>2
+			exit 2
 		fi
 	fi
 }

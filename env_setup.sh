@@ -18,9 +18,9 @@ function usage() {
 	# cat << EOF prints out text and stops printing the moment it matches the text found after '<<'
 	cat << ENDMSG
 Usage:
-./setup [-e|-ename|--ename <virtual environment name>] [-n|-nocache|--nocache] [-c|-color|--color] [-h|-help|--help]
+./env_setup.sh [-e|-ename|--ename <virtual environment name>] [-n|-nocache|--nocache] [-c|-color|--color] [-h|-help|--help]
 OR
-source setup [-e|-ename|--ename <virtual environment name>] [-n|-nocache|--nocache] [-c|-color|--color]
+source env_setup.sh [-e|-ename|--ename <virtual environment name>] [-n|-nocache|--nocache] [-c|-color|--color]
 # DO NOT send the -h flag when running source with this script. Your terminal session will close immediately.
 
 Description:
