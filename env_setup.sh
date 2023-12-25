@@ -18,12 +18,11 @@ continue_setup=true
 # Print the below help message
 function usage() {
 	# cat << EOF prints out text and stops printing the moment it matches the text found after '<<'
-	cat << ENDMSG
+	cat << EOF
 Usage:
-./env_setup.sh [-e <virtual environment name>] [-n] [-c] [-h]
+./env_setup.sh [-e <virtual environment name>] [-n] [-c] [-h] [ -f <text file name containing output of pip freeze> ]
 OR
-source env_setup.sh [-e <virtual environment name>] [-n] [-c]
-# DO NOT send the -h flag when running source with this script. Your terminal session will close immediately.
+source env_setup.sh [-e <virtual environment name>] [-n] [-c] [-h] [ -f <text file name containing output of pip freeze> ]
 
 Description:
 This script the setup for the virtual envirnoment to install all dependencies in an isolated environment.
@@ -31,10 +30,11 @@ The script first looks for the recommended virtual environment directory (which 
 and if it exists, it compares the dependencies installed with the dependencies in the requirements.txt file. If the dependencies
 are not matching, all existing dependencies are uninstalled and the dependencies specified in requirements.txt are installed instead.
 
-************************************************************IMPORTANT****************************************************************
+**********************************************************VERY IMPORTANT*************************************************************
 
-YOU MUST HAVE A requirements.txt FILE THAT CONTAINS THE OUTPUT OF "pip freeze" IN YOUR DIRECTORY. OTHERWISE THIS SCRIPT WILL THROW
-UNEXPECTED ERRORS. THEY MAY CHANGE YOUR LOCAL ENVIRONMENT. THIS IS A FAIR WARNING.
+YOU MUST HAVE A TEXT FILE THAT CONTAINS THE OUTPUT OF "pip freeze" IN YOUR DIRECTORY. IF THIS FILE IS NOT "requirements.txt", IT MUST BE
+SPECIFIED WITH THE -f COMMAND LINE OPTION. OTHERWISE THIS SCRIPT WILL HAVE UNDEFINED BEHAVIOURS. THEY MAY CHANGE YOUR LOCAL ENVIRONMENT.
+THIS IS A FAIR WARNING.
 
 *************************************************************************************************************************************
 
@@ -70,7 +70,7 @@ Examples:
 ./setup -c -n -e dependencies			# disable caching, sets the virtual environment directory name to be "dependencies", and enables color messaging
 ./setup						# sets the virtual environment directory to be the default: "virtual_env_dependencies" (and continues from there)
 ./setup -f dependencies.txt			# sets the dependency text file to be used to be "dependencies.txt". All else is default.
-ENDMSG
+EOF
 }
 
 
@@ -115,20 +115,11 @@ function install_dependencies() {
 	fi
 }
 
-#set -x
 OPTIND=1
-# The part of the script that parses arguments passed into the command line. The script uses getopt,
-# so you should try checking to see if getopt is available in your terminal by typing 'getopt --help'.
+# The part of the script that parses arguments passed into the command line. The script uses getopts,
+# It should be a builtin utility in all bash shells, making this script compatible across platforms.
 if [ ${#} -ne 0 ]
 then
-	#options=$(getopt -l "help,nocache,color,ename:" -o "hnce:" -a -- "${@}")
-	#if [ ${?} -ne 0 ]
-	#then
-	#	echo "Incorrect invocation of the script. Printing help message below and exiting with an error code of 1."
-	#	usage
-	#	exit 1
-	#fi
-	#eval set -- "${options}"
 	while getopts ":he:f:nc" arg_value
 	do
 		case ${arg_value} in
