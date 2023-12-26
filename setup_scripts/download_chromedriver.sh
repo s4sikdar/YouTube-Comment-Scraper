@@ -96,7 +96,7 @@ function download_and_move_chromedriver_locally() {
 		# out of the placeholder directory and into ~/bin/. Then we remove the placeholder directory.
 		if [ "${directory_name}" = "${executable_name}" ]
 		then
-			echo "Chromedriver executable is in ~/bin/${chromedriver_executable_path}. Moving executable to ~/bin/ and removing both directory ${directory_name}/ and ${zip_file_name}."
+			echo "Chromedriver executable is in ${HOME}/bin/${chromedriver_executable_path}. Moving executable to ${HOME}/bin/ and removing both directory ${HOME}/bin/${directory_name}/ and ${zip_file_name}."
 			num=1
 			placeholder_dir="testdir${num}"
 			while [ -d "${placeholder_dir}" ]
@@ -110,12 +110,41 @@ function download_and_move_chromedriver_locally() {
 			cp "./${placeholder_dir}/${executable_name}" "./${executable_name}"
 			rm -r "./${placeholder_dir}/"
 		else
-			echo "Chromedriver executable is in ~/bin/${chromedriver_executable_path}. Moving executable to ~/bin/ and removing both directory ${directory_name}/ and ${zip_file_name}."
+			echo "Chromedriver executable is in ${HOME}/bin/${chromedriver_executable_path}. Moving executable to ${HOME}/bin/ and removing both directory ${HOME}/bin/${directory_name}/ and ${zip_file_name}."
 			cp "${chromedriver_executable_path}" "./${executable_name}"
 			rm -r "./${directory_name}/"
 		fi
 	fi
+	echo "Chromedriver executable is installed in ${HOME}/bin/."
 	rm "${zip_file_name}"
+}
+
+# Function to check if ~/bin/ is in your $PATH environment variable. Credit to the source below:
+# https://stackoverflow.com/questions/1396066/detect-if-path-has-a-specific-directory-entry-in-it
+# If ~/bin/ dir is not in your path variable, it will add it for you and export this to your environment.
+# When running the script with the source command, it will import this changed path into your current terminal
+# session, and this change will stay. You may have to manually remove this directory from your path.
+function add_bin_dir_in_home_to_path() {
+	local confirmation_text=''
+	if [[ ":${PATH}:" != *":${HOME}/bin:"* ]]
+	then
+		echo "${HOME}/bin/ is not in your path directory. The script will add this directory to your PATH environment variable."
+		echo "Would you like to proceed with this? Enter 'y' to confirm permission or 'n' to deny permission."
+		read confirmation_text
+		while [ "${confirmation_text}" != 'y' -a "${confirmation_text}" != 'n' ]
+		do
+			echo "Invalid input. Enter 'y' to confirm permission, 'n' to deny permission."
+			read confirmation_text
+		done
+		if [ "${confirmation_text}" = 'y' ]
+		then
+			export PATH="${HOME}/bin:${PATH}"
+			echo "Added ${HOME}/bin/ to your PATH environment variable."
+		else
+			echo "The chromedriver binary is in ${HOME}/bin/. This is not in your PATH environment variable."
+			echo "You need to transfer the executable to a directory in your PATH environment variable."
+		fi
+	fi
 }
 
 # The function that ensures the following:
@@ -188,13 +217,10 @@ function find_and_install_chromedriver() {
 		cd bin/
 		download_and_move_chromedriver_locally "${python_script_path}" "${executable_name}" "${zip_file_name}"
 	fi
-	if [[ ":${PATH}:" != *":${HOME}/bin:"* ]]
-	then
-		echo "${HOME}/bin/ is not in your path directory. The script will add this directory to your path environment variable."
-		PATH="${HOME}/bin:${PATH}"
-	fi
-	echo "Setup is complete."
+	# Add the bin/ dir to your PATH environment variable once you have downloaded the latest chromedriver binary.
+	add_bin_dir_in_home_to_path
+	#echo "Setup is complete."
 }
 
 
-find_and_install_chromedriver
+#find_and_install_chromedriver

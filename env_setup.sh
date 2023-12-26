@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 
 source ./setup_scripts/correct_python.sh
+source ./setup_scripts/download_chromedriver.sh
+project_dir=$(pwd)
 
 # Color constants used for printing messages in color.
 YELLOW='\033[0;33m'       # Yellow
 NC='\033[0m' 		  # No Color
 GREEN='\033[0;32m'        # Green
+LIGHT_RED='\033[1;31m'    # Light Red
+LIGHT_GREEN='\033[1;32m'  # Light Green \033[1;32m
 
 # Variables used in the script
 virtual_env_name="virtual_env_dependencies"
@@ -13,6 +17,7 @@ no_caching=false
 color=false
 filename="requirements.txt"
 continue_setup=true
+get_chromedriver=true
 
 
 # Print the below help message
@@ -20,9 +25,9 @@ function usage() {
 	# cat << EOF prints out text and stops printing the moment it matches the text found after '<<'
 	cat << EOF
 Usage:
-./env_setup.sh [-e <virtual environment name>] [-n] [-c] [-h] [ -f <text file name containing output of pip freeze> ]
+./env_setup.sh [-e <virtual environment name>] [-n] [-c] [-h] [ -f <text file name containing output of pip freeze> ] [-d]
 OR
-source env_setup.sh [-e <virtual environment name>] [-n] [-c] [-h] [ -f <text file name containing output of pip freeze> ]
+source env_setup.sh [-e <virtual environment name>] [-n] [-c] [-h] [ -f <text file name containing output of pip freeze> ] [-d]
 
 Description:
 This script the setup for the virtual envirnoment to install all dependencies in an isolated environment.
@@ -40,7 +45,7 @@ THIS IS A FAIR WARNING.
 
 *******************************************************Important suggestion**********************************************************
 
-It is recommended to run the second version (source setup) to so that the virtual environment is loaded
+It is recommended to run the second version (source env_setup.sh) to so that the virtual environment is loaded
 into your terminal, and you can run the script from there. Otherwise you have to run the command below (for git bash at least).
 source ./\${DIRNAME}/Scripts/activate
 
@@ -62,14 +67,21 @@ Arguments supported:
 -f	Specify the filename that has the listed dependencies you install. This filename should be the output
 	of "pip freeze". By default it is "requirements.txt".
 
+-d	When d is specfied, the script checks that ${HOME}/bin/ exists, and that inside the ${HOME}/bin/ directory is the latest version of chromedriver.
+	If this is not true, the script will create the ${HOME}/bin/ directory, download the latest version of chromedriver and store it in ${HOME}/bin/.
+	If ${HOME}/bin/ is not in your PATH environment variable, the script will then ask permission to add it to your PATH environment variable.
+	If you enter 'y', then this will be added to your PATH variable in your current bash session (assuming you run this script with the source command).
+	Otherwise, you have to move the executable to a directory that is included in your PATH environment variable.
+
 Examples:
 ./setup -h 					# Prints this help message
-./setup -e dirname				# same as above
+./setup -e dirname				# Specifies the virtual environment directory name to be "dirname"
 ./setup -n					# disable caching
 ./setup -c					# print color messages
 ./setup -c -n -e dependencies			# disable caching, sets the virtual environment directory name to be "dependencies", and enables color messaging
 ./setup						# sets the virtual environment directory to be the default: "virtual_env_dependencies" (and continues from there)
 ./setup -f dependencies.txt			# sets the dependency text file to be used to be "dependencies.txt". All else is default.
+./setup -e dirname -d				# Specifies the virtual environment directory name to be "dirname", and downloads and stores the latest chromedriver in ${HOME}/bin/.
 EOF
 }
 
@@ -120,7 +132,7 @@ OPTIND=1
 # It should be a builtin utility in all bash shells, making this script compatible across platforms.
 if [ ${#} -ne 0 ]
 then
-	while getopts ":he:f:nc" arg_value
+	while getopts ":he:f:ncd" arg_value
 	do
 		case ${arg_value} in
 			h)
@@ -144,6 +156,9 @@ then
 				;;
 			c)
 				color=true
+				;;
+			d)
+				get_chromedriver=true
 				;;
 			\?)
 				echo "Invalid usage. Run ./env_setup.sh -h for documentation on how to use this script" 1>&2
@@ -177,7 +192,6 @@ function run_setup() {
 			source ./${virtual_env_name}/Scripts/activate
 			upgrade_pip "${no_caching}"
 			install_dependencies "${no_caching}"
-			echo "Requirements have been installed." | print_color "${GREEN}"
 		else
 			# Check the current package dependency listing and compare it with requirements.txt using the diff command to determine if there
 			# are any differences in package installed (i.e. different version, different packages installed, etc.)
@@ -195,7 +209,6 @@ function run_setup() {
 					use_correct_python_version -m pip cache purge 2> /dev/null
 				fi
 				install_dependencies "${no_caching}"
-				echo "Requirements have been installed." | print_color "${GREEN}"
 			fi
 			upgrade_pip "${no_caching}"
 		fi
@@ -208,13 +221,30 @@ function run_setup() {
 		source ./${virtual_env_name}/Scripts/activate
 		upgrade_pip "${no_caching}"
 		install_dependencies "${no_caching}"
-		echo "Requirements have been installed." | print_color "${GREEN}"
 	fi
 
+	# If the command line argument is specified, then find and install chromedriver
+	if [ ${get_chromedriver} = 'true' ]
+	then
+		echo "Checking chromedriver installation in ${HOME}/bin/ now." | print_color "${YELLOW}"
+		find_and_install_chromedriver | print_color "${YELLOW}"
+		cd "${project_dir}"
+	fi
+	echo "Requirements have been installed." | print_color "${GREEN}"
 	# Remove the tempfiles we create
 	rm ${tempfile}
 	rm ${diff_output}
 }
+
+if [ ! -f "${filename}" ]
+then
+	# continue_setup dictates if we should continue our setup or not. If the text file containing the output of "pip freeze" is not there,
+	# then we should not continue unless another text file is present that is specified through the command line. In this case, the getopts
+	# command will have a case to accountt for this and switch this variable back to true.
+	echo "${filename} does not exist after checking. Add a text file with the output of \"pip freeze\" and specify it in the command line if it is not requirements.txt." | print_color "${LIGHT_RED}"
+	echo "Not continuing with the setup." | print_color "${LIGHT_RED}"
+	continue_setup=false
+fi
 
 if [ "${continue_setup}" = true ]
 then
