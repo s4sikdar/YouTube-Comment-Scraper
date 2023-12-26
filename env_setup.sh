@@ -11,7 +11,7 @@ GREEN='\033[0;32m'        # Green
 LIGHT_RED='\033[1;31m'    # Light Red
 LIGHT_GREEN='\033[1;32m'  # Light Green \033[1;32m
 
-# Variables used in the script
+# Global variables used in the script
 virtual_env_name="virtual_env_dependencies"
 no_caching=false
 color=false
@@ -173,11 +173,7 @@ fi
 function run_setup() {
 	tempfile=$(mktemp)
 	diff_output=$(mktemp)
-	# Use the find command to search for the directory with the virtual environment directory name. Use the length of the directories matching to
-	# determine if the directory exists.
-	directories_matching=$(find ./ -type d -name "${virtual_env_name}")
-	length=$(echo ${directories_matching} | wc -c)
-	if [ ${length} -gt 1 ]
+	if [ -d "${virtual_env_name}" ]
 	then
 		# Directory was found, so try activating the script to start the virtual environment. If it doesn't work (non-zero return code), then
 		# remove this directory and install a new virtual environment with the same directory name. If it works, then check the existing package
@@ -231,7 +227,6 @@ function run_setup() {
 		cd "${project_dir}"
 	fi
 	echo "Requirements have been installed." | print_color "${GREEN}"
-	# Remove the tempfiles we create
 	rm ${tempfile}
 	rm ${diff_output}
 }
