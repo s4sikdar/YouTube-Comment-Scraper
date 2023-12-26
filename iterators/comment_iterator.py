@@ -79,7 +79,7 @@ class CommentIterator:
         comment_number = WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_number_selector))
         )
-        total_comments = int(comment_number.text.strip())
+        total_comments = int(''.join(comment_number.text.strip().split(',')))
         if self.limit == None:
             self.limit = total_comments
 
@@ -201,7 +201,7 @@ class CommentIterator:
         return self
 
     def __next__(self):
-        if self.total_comments_parsed == self.limit:
+        if self.total_comments_parsed >= self.limit:
             self.driver.quit()
             raise StopIteration
         else:
