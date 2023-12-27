@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
-# Some users have "python" pointing directly to python3, and they don't actually have python3 as a command on their machine.
-# Other users have "python3" pointing to python3 as a command, but not "python" as a command (or if python is installed, it
-# points to python2, which will not work).
+# A function to try and find out whether to use python or python3. Some computers may have python point to python3, others have python point to python2 (so you have to specify python3). Then run the according
+# python command with the other arguments passed in after (i.e. can use this function to run python scripts as you otherwise would by running "use_correct_python_version script.py -a 2 -b 3 ..."
 function use_correct_python_version() {
 	python_version=0
 	/usr/bin/env python --version &> /dev/null
@@ -18,7 +17,7 @@ function use_correct_python_version() {
 			then
 				/usr/bin/env python3 "${@}"
 			else
-				echo "Python not installed." &>2
+				echo "Python3 not installed." &>2
 				exit 2
 			fi
 		fi
@@ -33,4 +32,3 @@ function use_correct_python_version() {
 		fi
 	fi
 }
-

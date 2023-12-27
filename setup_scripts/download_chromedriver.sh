@@ -3,27 +3,24 @@
 source ./setup_scripts/correct_python.sh
 source ./setup_scripts/find_os_and_platform.sh
 
-
-# The function uses the python script to download the latest chromedriver binary available for google chrome. From there it
-# extracts the chromedriver binary only from the zip file using the unzip command (if possible). It then prints the output of
-# the file path that has been extracted from the unzip command. One argument is given, which is the name of the python script path.
+# The function uses the python script get_webdriver.py to download the latest chromedriver binary available for google chrome.
+# From there it extracts the chromedriver binary only from the zip file using the unzip command (if possible). It then prints
+# the file path for the extracted binary relative to where the zip file is downloaded. The script path to the get_webdriver.py script must be passed in.
 function get_latest_chromedriver() {
 	python_script_path="${1}"
 	tempfile=$(mktemp)
 	#error_output_file=$(mktemp)
-	# Since standard error is redirected to /dev/null, a non-zero exit code from the get_platform function will result in
-	# platform being an empty string. Enter the if conditional if the string has a length of 0.
+	# Since standard error is redirected to /dev/null, a non-zero exit code from the get_platform function (something going wrong) will result in
+	# platform being an empty string.
 	platform=$(get_platform 2> /dev/null)
 	if [ -z "${platform}" ]
 	then
-		# Since it's a subshell, the return code should exit out of the subshell. So run the command again.
-		# This time, don't show standard output. Show standard error only. Since it is not in a subshell this time,
-		# the script should exit.
+		# Show standard error only. Since it is not in a subshell this time, the script should exit.
 		rm ${tempfile}
 		get_platform 1> /dev/null
 	fi
 	# Since standard error is redirected to /dev/null, a non-zero exit code from the command in the subshell will result in
-	# platform being an empty string. Enter the if conditional if the string in zip_fname has a non-zero length.
+	# platform being an empty string. Proceed further if zip_fname has non-zero length only.
 	zip_fname=$(use_correct_python_version "${python_script_path}" --platform="${platform}" 2> /dev/null)
 	if [ "${zip_fname}" ]
 	then
@@ -31,15 +28,13 @@ function get_latest_chromedriver() {
 		unzip -v &> /dev/null
 		if [ ${?} -ne 0 ]
 		then
-			#set +x
-			echo "The file ${zip_fname} was downloaded but the unzip command does not seem to be supported." 1>&2
-			echo "You will need to manually unzip the chromedriver zip file, take out the chromedriver binary, and install it in your PATH." 1>&2
-			echo "Exiting with an error code of 1." 1>&2
+			echo "The file ${zip_fname} was downloaded but the unzip is not supported. The script will exit with an error code of 1." 1>&2
+			echo "You will need to manually unzip the chromedriver zip file, take out the chromedriver binary, and install it in your PATH environment variable." 1>&2
 			rm ${tempfile}
 			exit 1
 		fi
-		# unzil -ql ${zip_filename} shows the file structure of what is inside of the zip file, with other information as well.
-		# The first 2 and last 2 lines are for decoration. So the actual line count is the line count from unzip -ql "file name" - 4
+		# unzil -ql ${zip_filename} shows information on the what is inside of the zip file, including the file paths.
+		# The first 2 and last 2 lines are for decoration. So the actual line count is the line count from unzip -ql "file name" minus 4
 		unzip_line_count=$(unzip -ql "${zip_fname}" 2> /dev/null | wc -l 2> /dev/null)
 		line_count_outside_last_2=$((${unzip_line_count} - 2))
 		actual_file_count=$((${line_count_outside_last_2} - 2))
@@ -48,9 +43,8 @@ function get_latest_chromedriver() {
 		tempfile_char_count=$(wc -c ${tempfile} | awk '{ print $1 }' 2> /dev/null)
 		if [[ ${tempfile_char_count} -eq 0 ]]
 		then
-			echo "Something when wrong when trying to unzip. You iwll have to manually unzip the chromedriver zip file, take out the chromedriver binary and add it to your PATH." 1>&2
-			echo "Exiting with an error code of 1." 1>&2
-			echo "" > ${tempfile}
+			echo "Something when wrong when trying to unzip. The script will exit with an error code of 1." 1>&2
+			echo "You will have to manually unzip the chromedriver zip file, take out the chromedriver binary and add it to your PATH environment variable." 1>&2
 			rm ${tempfile}
 			exit 1
 		else
@@ -72,10 +66,10 @@ function get_latest_chromedriver() {
 # 1) ${1} contains the absolute path to the python script
 # 2) ${2} contains the executable name
 # 3) ${3} contains the name of the zip file
-# Requires: the script must be in ~/bin/ when this is called
+# Requires: when the function is called, you must be in ~/bin/
 function download_and_move_chromedriver_locally() {
-	# get_latest_chromedriver prints out the path to the chromedriver executable from ~/bin/.
-	# If the path is different (i.e. chromedriver is in another nested directory, copy the executable into ~/bin/ and remove the original different path).
+	# get_latest_chromedriver prints out the path to the chromedriver executable relative to where the zipfile is.
+	# If the path is different (i.e. chromedriver is in another nested directory) copy the executable into ~/bin/ and remove the original different path (as well as everything else).
 	# Otherwise, do nothing to the path to the chromedriver executable. Also we remove the zip file.
 	python_script_path="${1}"
 	executable_name="${2}"
@@ -84,16 +78,15 @@ function download_and_move_chromedriver_locally() {
 	#chromedrivers_in_bin_dir=$(find -maxdepth 1 -type f -iname "${executable_name}" 2> /dev/null)
 	num_fields_seprated_by_slash=$(echo "${chromedriver_executable_path}" | awk -F / '{ print NF }')
 	directory_name=$(echo "${chromedriver_executable_path}" | awk -F / '{ print $1 }')
-	# Essentially we don't know the file structure inside the zip file until we use the unzip command.
-	# The chromedriver executable could be in multiple subdirectories that get created. So if the number of fields
-	# separated by a slash is greater than 1, then we know that we need to copy the original path to the chromedriver
-	# executable and put it in the main ~/bin/ directory. Then we remove the directory name for the chromedriver executable
-	# path (if applicable), and the zipfile.
+	# We don't know the file structure inside the zip file until we use the unzip command.
+	# The chromedriver executable could be nested in multiple subdirectories. So if the number of fields
+	# separated by a forward slash is greater than 1, then we know that the executable is in a subdirectory, and we need to copy the original path to the chromedriver
+	# executable and put it in the main ~/bin/ directory. Then we remove the directory name for the original chromedriver executable path (if applicable), and the zipfile.
 	if [[ ${num_fields_seprated_by_slash} -gt 1 ]]
 	then
 		# In the special case that we have the executable name being the same as the directory name, we create a placeholder
-		# directory, copy the executable there, remove the directory with the same name as the executable, then copy the executable
-		# out of the placeholder directory and into ~/bin/. Then we remove the placeholder directory.
+		# directory, copy the executable there, and remove the original directory with the same name as the executable. Then copy the executable
+		# out of the placeholder directory and into ~/bin/. Then remove the placeholder directory.
 		if [ "${directory_name}" = "${executable_name}" ]
 		then
 			echo "Chromedriver executable is in ${HOME}/bin/${chromedriver_executable_path}. Moving executable to ${HOME}/bin/ and removing both directory ${HOME}/bin/${directory_name}/ and ${zip_file_name}."
@@ -121,9 +114,8 @@ function download_and_move_chromedriver_locally() {
 
 # Function to check if ~/bin/ is in your $PATH environment variable. Credit to the source below:
 # https://stackoverflow.com/questions/1396066/detect-if-path-has-a-specific-directory-entry-in-it
-# If ~/bin/ dir is not in your path variable, it will add it for you and export this to your environment.
-# When running the script with the source command, it will import this changed path into your current terminal
-# session, and this change will stay. You may have to manually remove this directory from your path.
+# If ~/bin/ dir is not in your path variable, it will add it for you and this is exported to your current bash session
+# (assuming when you use this function, you call the script with the source command). You may have to manually remove this directory from your path to undo it.
 function add_bin_dir_in_home_to_path() {
 	local confirmation_text=''
 	if [[ ":${PATH}:" != *":${HOME}/bin:"* ]]
@@ -148,8 +140,8 @@ function add_bin_dir_in_home_to_path() {
 }
 
 # The function that ensures the following:
-# 1) A ~/bin/ directory exists and it is in your $PATH variable. Otherwise create the ~/bin/ directory if necessary, and warn the user if it is not included in their path directory.
-# 2) Inside the ~/bin/ directory is the latest stable version of chromedriver based on an endpoint in the function. Otherwise download the latest version.
+# 1) A ~/bin/ directory exists and it is in your $PATH variable. Otherwise create the ~/bin/ directory if necessary, and try to add it to the user's $PATH.
+# 2) Inside the ~/bin/ directory is the latest stable version of chromedriver (platform specific executable). Otherwise download the latest version.
 function find_and_install_chromedriver() {
 	latest_stable_version_endpoint='https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_STABLE'
 	latest_stable_version=$(curl -s "${latest_stable_version_endpoint}" 2> /dev/null)
@@ -158,14 +150,13 @@ function find_and_install_chromedriver() {
 	mac_x64_zip_name='chromedriver-mac-x64.zip'
 	win32_zip_name='chromedriver-win32.zip'
 	win64_zip_name='chromedriver-win64.zip'
-	project_path=$(pwd)
 	python_script_path="${project_path}/get_webdriver.py"
-	cd ${HOME}
-
-
 	platform_name=$(get_platform)
 	executable_name='chromedriver'
 	zip_file_name=''
+	project_path=$(pwd)
+
+	cd ${HOME}
 	case ${platform_name} in
 		win32*)
 			executable_name='chromedriver.exe'
@@ -198,8 +189,7 @@ function find_and_install_chromedriver() {
 		if [ -s "${executable_name}" ]
 		then
 			local_chromedriver_version=$(./${executable_name} --version 2> /dev/null | awk '{ print $2 }' 2> /dev/null)
-			# if local_chromedriver_version is an empty string, or does not equal latest stable version, then remove the local chromedriver executable
-			# and download the latest one, because it is either not up to date, or something went wrong.
+			# if local_chromedriver_version is an empty string, or does not equal latest stable version, then remove the local chromedriver executable and download the latest one.
 			if [ -z "${local_chromedriver_version}" -o "${local_chromedriver_version}" != "${latest_stable_version}" ]
 			then
 				echo "Local chromedriver version is not the latest stable version, or the version could not be gathered from the file, or the latest stable version cannot be gathered."
@@ -213,14 +203,9 @@ function find_and_install_chromedriver() {
 		fi
 	else
 		echo "bin directory is not there. Making a bin directory in ${HOME} and adding the chromedriver binary executable there."
-		mkdir bin
-		cd bin/
+		mkdir bin; cd bin/
 		download_and_move_chromedriver_locally "${python_script_path}" "${executable_name}" "${zip_file_name}"
 	fi
-	# Add the bin/ dir to your PATH environment variable once you have downloaded the latest chromedriver binary.
+	# Only add the bin/ dir to your PATH environment variable once you have downloaded the latest chromedriver binary.
 	add_bin_dir_in_home_to_path
-	#echo "Setup is complete."
 }
-
-
-#find_and_install_chromedriver

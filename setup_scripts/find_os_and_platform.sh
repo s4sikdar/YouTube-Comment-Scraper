@@ -25,26 +25,24 @@ function get_os() {
 
 
 # The function that helps us to get the name of the platform being used. Using the machine hardware names and the operating
-# system specified, we can determine the platform that we are on. This can help us determine what chromedriver zip file we must
-# download, if we can download any for the platform the user is on. If we see a operating system and hardware combination that is
-# not supported, we immediately alert the user by printing to standard error and exiting with an error code of 2.
+# system specified, we can determine the platform that we are on. This determines what chromedriver zip file we must download.
+# If we see a operating system and hardware combination that is not supported, we immediately alert the user by printing to standard error and exiting with an error code of 2.
 function get_platform() {
 	platform=''
 	os_name=$(get_os)
 	# run uname -m to get the machine of the platform, and use the tr command to guarantee everything is lowercase
 	machine_hardware_name=$(uname -m | tr '[:upper:]' '[:lower:]')
 	tempfile=$(mktemp)
-	# machine hardware names for bit32 hardware
-	declare -a bit32_hardware_names
-	bit32_hardware_names[0]='i686'
-	bit32_hardware_names[1]='i386'
+	declare -a windows_bit32_hardware_names
+	windows_bit32_hardware_names[0]='i686'
+	windows_bit32_hardware_names[1]='i386'
 	case ${os_name} in
 		linux*)
 			if [ "${machine_hardware_name}" = 'x86_64' ]
 			then
 				platform='linux64'
 			else
-				echo "You are using linux on a machine that is not 64-bit. You must have a 64-bit machine to have a linux chromedriver. Exiting with an error code of 2." 1>&2
+				echo "You are using linux on a machine that is not 64-bit. On Linux, you must have a 64-bit machine to use chromedriver. Exiting with an error code of 2." 1>&2
 				rm ${tempfile}
 				exit 2
 			fi
@@ -57,15 +55,15 @@ function get_platform() {
 			then
 				platform='mac-x64'
 			else
-				echo "You are using a Mac OS on a machine that is not an arm-64 machine or a 64-bit machine." 1>&2
-				echo "You must have one of the two to use the linux chromedriver on a Mac OS. Exiting with an error code or 2." 1>&2
+				echo "You are using a Mac OS on a machine that is not an mac-arm64 machine or a mac-x64 machine." 1>&2
+				echo "You must have one of the two to use chromedriver on a Mac OS. Exiting with an error code or 2." 1>&2
 				rm ${tempfile}
 				exit 2
 			fi
 			;;
 		windows*)
-			# If machine hardware name is one of the entries in the bit32_hardware_names array, this condition is true
-			if  [ "${machine_hardware_name}" = "${bit32_hardware_names[0]}" -o "${machine_hardware_name}" = "${bit32_hardware_names[1]}" ]
+			# If machine hardware name is one of the entries in the windows_bit32_hardware_names array, this condition is true
+			if  [ "${machine_hardware_name}" = "${windows_bit32_hardware_names[0]}" -o "${machine_hardware_name}" = "${windows_bit32_hardware_names[1]}" ]
 			then
 				platform='win32'
 			elif [ "${machine_hardware_name}" = 'x86_64' ]
@@ -83,6 +81,6 @@ function get_platform() {
 			exit 2
 			;;
 	esac
-	echo ${platform}
+	echo ${platform} # output from this function is used as an argument for the get_webdriver.py script.
 	rm ${tempfile}
 }

@@ -128,8 +128,7 @@ function install_dependencies() {
 }
 
 OPTIND=1
-# The part of the script that parses arguments passed into the command line. The script uses getopts,
-# It should be a builtin utility in all bash shells, making this script compatible across platforms.
+# The part of the script that parses arguments passed into the command line. The script uses getopts, which should be compatible across platforms,
 if [ ${#} -ne 0 ]
 then
 	while getopts ":he:f:ncd" arg_value
@@ -168,7 +167,6 @@ then
 	done
 	shift $((${OPTIND}-1))
 fi
-#set +x
 
 function run_setup() {
 	tempfile=$(mktemp)
