@@ -57,7 +57,7 @@ class CommentIterator:
         # Comment selectors
         self.comment_number_selector = '#sections #count > yt-formatted-string > span:nth-child(1)'
         self.comment_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #content-text'
-        self.commenter_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #author-text > yt-formatted-string'
+        self.commenter_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #author-text'
         self.comment_link_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #header-author > yt-formatted-string > a'
         self.replies_button_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #more-replies > yt-button-shape > button > yt-touch-feedback-shape > div > div.yt-spec-touch-feedback-shape__fill'
         self.less_replies_button_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #less-replies > yt-button-shape > button > yt-touch-feedback-shape > div > div.yt-spec-touch-feedback-shape__fill'
@@ -131,7 +131,7 @@ class CommentIterator:
             would be used for count, and self.reply_count would be used for child_count).
         '''
         self.comment_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #content-text'
-        self.commenter_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #author-text > yt-formatted-string'
+        self.commenter_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #author-text'
         self.comment_link_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #header-author > yt-formatted-string > a'
         self.replies_button_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #more-replies > yt-button-shape > button > yt-touch-feedback-shape > div > div.yt-spec-touch-feedback-shape__fill'
         self.less_replies_button_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #less-replies > yt-button-shape > button > yt-touch-feedback-shape > div > div.yt-spec-touch-feedback-shape__fill'

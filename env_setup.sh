@@ -17,7 +17,7 @@ no_caching=false
 color=false
 filename="requirements.txt"
 continue_setup=true
-get_chromedriver=true
+get_chromedriver=false
 
 
 # Print the below help message
@@ -186,6 +186,7 @@ function run_setup() {
 			source ./${virtual_env_name}/Scripts/activate
 			upgrade_pip "${no_caching}"
 			install_dependencies "${no_caching}"
+			echo "Requirements have been installed." | print_color "${GREEN}"
 		else
 			# Check the current package dependency listing and compare it with requirements.txt using the diff command to determine if there
 			# are any differences in package installed (i.e. different version, different packages installed, etc.)
@@ -203,6 +204,7 @@ function run_setup() {
 					use_correct_python_version -m pip cache purge 2> /dev/null
 				fi
 				install_dependencies "${no_caching}"
+				echo "Requirements have been installed." | print_color "${GREEN}"
 			fi
 			upgrade_pip "${no_caching}"
 		fi
@@ -215,6 +217,7 @@ function run_setup() {
 		source ./${virtual_env_name}/Scripts/activate
 		upgrade_pip "${no_caching}"
 		install_dependencies "${no_caching}"
+		echo "Requirements have been installed." | print_color "${GREEN}"
 	fi
 
 	# If the command line argument is specified, then find and install chromedriver
@@ -224,7 +227,6 @@ function run_setup() {
 		find_and_install_chromedriver | print_color "${YELLOW}"
 		cd "${project_dir}"
 	fi
-	echo "Requirements have been installed." | print_color "${GREEN}"
 	rm ${tempfile}
 	rm ${diff_output}
 }
