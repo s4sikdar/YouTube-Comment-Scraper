@@ -150,7 +150,7 @@ function find_and_install_chromedriver() {
 	mac_x64_zip_name='chromedriver-mac-x64.zip'
 	win32_zip_name='chromedriver-win32.zip'
 	win64_zip_name='chromedriver-win64.zip'
-	python_script_path="${project_path}/get_webdriver.py"
+	python_script_path="${project_path}/setup_scripts/get_webdriver.py"
 	platform_name=$(get_platform)
 	executable_name='chromedriver'
 	zip_file_name=''
