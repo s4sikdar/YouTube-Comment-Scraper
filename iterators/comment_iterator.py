@@ -9,9 +9,12 @@ from selenium.webdriver.support import expected_conditions as EC
 import re
 import time
 import json
+import datetime
 from selenium.common.exceptions import NoSuchElementException
 
 
+SECONDS_PER_MINUTE = 60
+SECONDS_PER_HOUR = 3600
 
 class CommentIterator:
     '''
@@ -35,7 +38,7 @@ class CommentIterator:
                     back. If the comment has replies, the regular expression is tested against the replies, and the information is returned if at
                     least one reply (or the original comment) matches the regular expression. If there are no matches, None is returned.
     '''
-    def __init__(self, youtube_url, comment_limit=None, regex=None):
+    def __init__(self, youtube_url, comment_limit=None, regex=None, hours=None, minutes=None, seconds=None):
         self.comment_thread_count = 0
         self.reply_count = 0
         self.total_comments_parsed = 0
@@ -54,6 +57,7 @@ class CommentIterator:
         self.thread_has_pattern = False
         self.parent_comment = None
         self.parent_comment_pos = 0
+        self.time_limit_exists = False
         # Comment selectors
         self.comment_number_selector = '#sections #count > yt-formatted-string > span:nth-child(1)'
         self.comment_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #content-text'
@@ -82,6 +86,46 @@ class CommentIterator:
         total_comments = int(''.join(comment_number.text.strip().split(',')))
         if self.limit == None:
             self.limit = total_comments
+        self.set_time_limit(hours, minutes, seconds)
+
+
+    def set_time_limit(self, hours, seconds, minutes):
+        '''
+            set_time_limit(self, hours, seconds, minutes) -> None
+            a helper method to setup the time limit attributes if necessary,
+            and to set a starting time if applicable as well. There is an attribute
+            (self.time_limit_exists) set to True if the hours, minutes or seconds
+            are specified to be non-zero. Otherwise, it is set to False (attribute is
+            used elsewhere).
+        '''
+        if ((hours == 0) and (minutes == 0) and (seconds == 0)):
+            self.time_limit_exists = False
+        else:
+            # total time limit in seconds, then converted to datetime.timedelta instance, since timedelta
+            # instances can be compared with other time delta instances (to check if elapsed time is greater than
+            # a threshold)
+            self.time_limit_exists = True
+            self.total_seconds = (hours * SECONDS_PER_HOUR) + (minutes * SECONDS_PER_MINUTE) + seconds
+            self.total_time_limit = datetime.timedelta(seconds = self.total_seconds)
+            self.start_time = datetime.datetime.now()
+
+    def time_to_stop_scraping(self):
+        '''
+            time_to_stop_scraping(self) -> Bool
+            a helper method to determine if we should stop scraping comments, and
+            if the webdriver should shut down. If the total number of comments parsed
+            is greater than or equal to the limit, or if we have passed the specified
+            time limit, then we return True (indicating we should stop scraping comments).
+            Otherwise, return False.
+        '''
+        if self.total_comments_parsed >= self.limit:
+            return True
+        elif self.time_limit_exists:
+            current_time = datetime.datetime.now()
+            elapsed_time = current_time - self.start_time
+            if (elapsed_time > self.total_time_limit):
+                return True
+        return False
 
     def get_attribute(self, element, attribute):
         '''
@@ -110,7 +154,7 @@ class CommentIterator:
         '''
             reset_eleemnts(self) -> None
             resets all of the attributes used for finding elements to be None, and the dictionary for
-            keeping comment information to be an empty dictinary
+            keeping comment information to be an empty dictinary.
         '''
         self.current_comment = None
         self.comment_channel_name = None
@@ -200,8 +244,9 @@ class CommentIterator:
     def __iter__(self):
         return self
 
+
     def __next__(self):
-        if self.total_comments_parsed >= self.limit:
+        if self.time_to_stop_scraping():
             self.driver.quit()
             raise StopIteration
         else:
