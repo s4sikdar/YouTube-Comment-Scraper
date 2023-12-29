@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# works because this script is run in the main project directory
 source ./setup_scripts/correct_python.sh
 source ./setup_scripts/find_os_and_platform.sh
 
@@ -82,7 +83,12 @@ function download_and_move_chromedriver_locally() {
 	# The chromedriver executable could be nested in multiple subdirectories. So if the number of fields
 	# separated by a forward slash is greater than 1, then we know that the executable is in a subdirectory, and we need to copy the original path to the chromedriver
 	# executable and put it in the main ~/bin/ directory. Then we remove the directory name for the original chromedriver executable path (if applicable), and the zipfile.
-	if [[ ${num_fields_seprated_by_slash} -gt 1 ]]
+	if [[ ${num_fields_seprated_by_slash} -eq 0 ]]
+	then
+		echo "Something went wrong when trying to download chromedriver. Exiting with an error code of 1." 1>&2
+		echo "You must manually download the latest version of chromedriver and install it in your PATH environment variable." 1>&2
+		exit 1
+	elif [[ ${num_fields_seprated_by_slash} -gt 1 ]]
 	then
 		# In the special case that we have the executable name being the same as the directory name, we create a placeholder
 		# directory, copy the executable there, and remove the original directory with the same name as the executable. Then copy the executable
@@ -150,11 +156,11 @@ function find_and_install_chromedriver() {
 	mac_x64_zip_name='chromedriver-mac-x64.zip'
 	win32_zip_name='chromedriver-win32.zip'
 	win64_zip_name='chromedriver-win64.zip'
+	project_path=$(pwd)
 	python_script_path="${project_path}/setup_scripts/get_webdriver.py"
 	platform_name=$(get_platform)
 	executable_name='chromedriver'
 	zip_file_name=''
-	project_path=$(pwd)
 
 	cd ${HOME}
 	case ${platform_name} in
