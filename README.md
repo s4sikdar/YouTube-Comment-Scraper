@@ -7,20 +7,31 @@ The video must be public and have comments enabled. The module only returns back
 3. The link to the comment, with key "link"
 4. A list of children comments, with dictionaries that have the above keys except for their own list of children
 ### Options taken by the script
-Script usage: `python main.py [-h] [-l LIMIT] --url URL [--pattern PATTERN] [-o OUTPUT]`
+Script usage: `python main.py [-h] [-l LIMIT] --url URL [--pattern PATTERN] [-o OUTPUT] [--hours HOURS] [--minutes MINUTES] [--seconds SECONDS]`
 Arguments taken:
 ```
-  -h, --help            	show a help message and exit
+  -h, --help            	show this help message and exit
 
-  -l LIMIT, --limit LIMIT	the maximum number of comments we will scrape. This is not a hard limit. If you have a comment thread with 400 replies, and your limit is 300, the
-				script will go through all 400 replies, and then exit. It does not stop at reply number 299.
+  -l LIMIT, --limit LIMIT	the maximum number of comments we will scrape
 
-  --url URL             	The YouTube video url for the video you want to scrape. You should check that the YouTube video is available. Otherwise the script throws undefined behaviour.
+  --url URL             	the YouTube video url for the video you want to scrape
+                        	(should be available)
 
-  --pattern PATTERN     	The regular expression pattern that you want to filter comments by. A comment thread is matched and included in the JSON if the comment or one of the replies
-				satisfies the regular expression. If no pattern is specified, all comment threads are matched and added in the JSON.
+  --pattern PATTERN     	The regular expression pattern you use to parse and
+                        	match text patterns in comments. By default, all
+                        	comments are matched and added to the JSON.
 
-  -o OUTPUT, --output OUTPUT 	The output file you will store the JSON in. It defaults to "comments.json".
+  -o OUTPUT, --output OUTPUT	The output file you will store the JSON in. Defaults
+                        	to "comments.json".
+
+  --hours HOURS         	The maximum number of hours you want the program to
+                        	run.
+
+  --minutes MINUTES     	The maximum number of minutes you want the program to
+                        	run.
+
+  --seconds SECONDS     	The maximum number of seconds you want the program to
+                        	run.
 ```
 ### Setup steps
 1. Ensure you have git bash installed.
