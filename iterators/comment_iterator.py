@@ -38,7 +38,7 @@ class CommentIterator:
                     back. If the comment has replies, the regular expression is tested against the replies, and the information is returned if at
                     least one reply (or the original comment) matches the regular expression. If there are no matches, None is returned.
     '''
-    def __init__(self, youtube_url, comment_limit=None, regex=None, hours=None, minutes=None, seconds=None):
+    def __init__(self, youtube_url, comment_limit=None, regex=None, hours=0, minutes=0, seconds=0):
         self.comment_thread_count = 0
         self.reply_count = 0
         self.total_comments_parsed = 0
@@ -89,7 +89,7 @@ class CommentIterator:
         self.set_time_limit(hours, minutes, seconds)
 
 
-    def set_time_limit(self, hours, seconds, minutes):
+    def set_time_limit(self, hours, minutes, seconds):
         '''
             set_time_limit(self, hours, seconds, minutes) -> None
             a helper method to setup the time limit attributes if necessary,

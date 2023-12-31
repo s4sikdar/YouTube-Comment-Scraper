@@ -25,9 +25,9 @@ def valid_arguments(argument_parser):
         Return False otherwise.
     '''
     invalid_time_limit = (
-        ((argument_parser.hours != None) and (argument_parser.hours < 0)) or \
-        ((argument_parser.minutes != None) and (argument_parser.minutes < 0)) or \
-        ((argument_parser.seconds != None) and (argument_parser.seconds < 0))
+        ((argument_parser.hours < 0) or \
+         (argument_parser.minutes < 0) or \
+         (argument_parser.seconds < 0))
     )
     too_few_seconds = ((argument_parser.hours == 0) and (argument_parser.minutes == 0) and ((argument_parser.seconds > 0) and (argument_parser.seconds < 30)))
     invalid_comment_limit = (argument_parser.limit != None) and (argument_parser.limit <= 0)
@@ -94,10 +94,10 @@ def main():
     comments = {
         'comments': []
     }
-    #with open(arguments.output, 'w') as output_file:
-    #    for item in CommentIterator(arguments.url, arguments.limit, arguments.pattern):
-    #        comments['comments'].append(item)
-    #    output_file.write(json.dumps(comments))
+    with open(arguments.output, 'w') as output_file:
+        for item in CommentIterator(arguments.url, arguments.limit, arguments.pattern, arguments.hours, arguments.minutes, arguments.seconds):
+            comments['comments'].append(item)
+        output_file.write(json.dumps(comments))
 
 
 if __name__ == '__main__':
