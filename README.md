@@ -8,6 +8,7 @@ The video must be public and have comments enabled. The module only returns back
 4. A list of children comments, with dictionaries that have the above keys except for their own list of children
 ### Options taken by the script
 Script usage: `python main.py [-h] [-l LIMIT] --url URL [--pattern PATTERN] [-o OUTPUT] [--hours HOURS] [--minutes MINUTES] [--seconds SECONDS]`
+
 Arguments taken:
 ```
   -h, --help            	show this help message and exit
