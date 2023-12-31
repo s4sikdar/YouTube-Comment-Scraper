@@ -127,6 +127,24 @@ function install_dependencies() {
 	fi
 }
 
+
+# function to remove the existing directory with the name of the virtual environment, and crate a new one
+# in its place. From there, find the location of the "activate" bash script and source it so that you've activated
+# the new script. From there, upgrade pip and install all required dependencies.
+function remove_and_reinstall_venv() {
+	env_name="${1}"
+	echo "Existing \"${env_name}\" directory found that is not a virtual environment directory." | print_color "${YELLOW}"
+	echo "This script will delete it, install a new virtual environment with directory name \"${env_name}\", and install dependencies." | print_color "${YELLOW}"
+	rm -r "./${env_name}"
+	use_correct_python_version -m venv "./${env_name}"
+	activate_script=$(find  ./ -iwholename "./${env_name}/*/activate" 2> /dev/null)
+	source "${activate_script}" 2> /dev/null
+	upgrade_pip "${no_caching}"
+	install_dependencies "${no_caching}"
+	echo "Requirements have been installed." | print_color "${GREEN}"
+}
+
+
 OPTIND=1
 # The part of the script that parses arguments passed into the command line. The script uses getopts, which should be compatible across platforms,
 if [ ${#} -ne 0 ]
@@ -168,6 +186,7 @@ then
 	shift $((${OPTIND}-1))
 fi
 
+
 function run_setup() {
 	tempfile=$(mktemp)
 	diff_output=$(mktemp)
@@ -176,45 +195,79 @@ function run_setup() {
 		# Directory was found, so try activating the script to start the virtual environment. If it doesn't work (non-zero return code), then
 		# remove this directory and install a new virtual environment with the same directory name. If it works, then check the existing package
 		# dependencies.
-		source ./${virtual_env_name}/Scripts/activate 2> /dev/null
-		if [ ${?} -ne 0 ]
+		activate_script=$(find  ./ -iwholename "./${virtual_env_name}/*/activate" 2> /dev/null)
+		if [ ! -z "${activate_script}" ]
 		then
-			echo "Existing \"${virtual_env_name}\" directory found that is not a virtual environment directory." | print_color "${YELLOW}"
-			echo "This script will delete it, install a new virtual environment with directory name \"${virtual_env_name}\", and install dependencies." | print_color "${YELLOW}"
-			rm -r "./${virtual_env_name}"
-			use_correct_python_version -m venv "./${virtual_env_name}"
-			source ./${virtual_env_name}/Scripts/activate
-			upgrade_pip "${no_caching}"
-			install_dependencies "${no_caching}"
-			echo "Requirements have been installed." | print_color "${GREEN}"
-		else
-			# Check the current package dependency listing and compare it with requirements.txt using the diff command to determine if there
-			# are any differences in package installed (i.e. different version, different packages installed, etc.)
-			use_correct_python_version -m pip freeze > ${tempfile}
-			diff ${tempfile} ./requirements.txt -ZEbB > ${diff_output}
-			lines_difference=$(wc -l ${diff_output} | awk '{ print $1 }')
-			if [ ${lines_difference} -gt 0 ]
+			source "${activate_script}" 2> /dev/null
+			if [ ${?} -ne 0 ]
 			then
-				echo "Existing package installations were found that differ from the dependencies in ${filename}" | print_color "${YELLOW}"
-				echo "Removing all existing dependencies and installing the dependencies in ${filename}" | print_color "${YELLOW}"
-				upgrade_pip "${no_caching}"
-				use_correct_python_version -m pip uninstall -r ${tempfile} -y --quiet
-				if [ "${no_caching}" = true ]
+				remove_and_reinstall_venv "${virtual_env_name}"
+			else
+				# Check the current package dependency listing and compare it with requirements.txt using the diff command to determine if there
+				# are any differences in package installed (i.e. different version, different packages installed, etc.)
+				use_correct_python_version -m pip freeze > ${tempfile}
+				# flags on diff command ensure we don't worry about differences in space change
+				diff ${tempfile} ./requirements.txt -ZEbB > ${diff_output}
+				lines_difference=$(wc -l ${diff_output} | awk '{ print $1 }')
+				if [ ${lines_difference} -gt 0 ]
 				then
-					use_correct_python_version -m pip cache purge 2> /dev/null
+					echo "Existing package installations were found that differ from the dependencies in ${filename}" | print_color "${YELLOW}"
+					echo "Removing all existing dependencies and installing the dependencies in ${filename}" | print_color "${YELLOW}"
+					upgrade_pip "${no_caching}"
+					use_correct_python_version -m pip uninstall -r ${tempfile} -y --quiet
+					if [ "${no_caching}" = true ]
+					then
+						use_correct_python_version -m pip cache purge 2> /dev/null
+					fi
+					install_dependencies "${no_caching}"
+					echo "Requirements have been installed." | print_color "${GREEN}"
 				fi
-				install_dependencies "${no_caching}"
-				echo "Requirements have been installed." | print_color "${GREEN}"
+				upgrade_pip "${no_caching}"
 			fi
-			upgrade_pip "${no_caching}"
+		else
+			remove_and_reinstall_venv "${virtual_env_name}"
 		fi
+		#source ./${virtual_env_name}/Scripts/activate 2> /dev/null
+		#if [ ${?} -ne 0 ]
+		#then
+		#	echo "Existing \"${virtual_env_name}\" directory found that is not a virtual environment directory." | print_color "${YELLOW}"
+		#	echo "This script will delete it, install a new virtual environment with directory name \"${virtual_env_name}\", and install dependencies." | print_color "${YELLOW}"
+		#	rm -r "./${virtual_env_name}"
+		#	use_correct_python_version -m venv "./${virtual_env_name}"
+		#	source ./${virtual_env_name}/Scripts/activate
+		#	upgrade_pip "${no_caching}"
+		#	install_dependencies "${no_caching}"
+		#	echo "Requirements have been installed." | print_color "${GREEN}"
+		#else
+		#	# Check the current package dependency listing and compare it with requirements.txt using the diff command to determine if there
+		#	# are any differences in package installed (i.e. different version, different packages installed, etc.)
+		#	use_correct_python_version -m pip freeze > ${tempfile}
+		#	diff ${tempfile} ./requirements.txt -ZEbB > ${diff_output}
+		#	lines_difference=$(wc -l ${diff_output} | awk '{ print $1 }')
+		#	if [ ${lines_difference} -gt 0 ]
+		#	then
+		#		echo "Existing package installations were found that differ from the dependencies in ${filename}" | print_color "${YELLOW}"
+		#		echo "Removing all existing dependencies and installing the dependencies in ${filename}" | print_color "${YELLOW}"
+		#		upgrade_pip "${no_caching}"
+		#		use_correct_python_version -m pip uninstall -r ${tempfile} -y --quiet
+		#		if [ "${no_caching}" = true ]
+		#		then
+		#			use_correct_python_version -m pip cache purge 2> /dev/null
+		#		fi
+		#		install_dependencies "${no_caching}"
+		#		echo "Requirements have been installed." | print_color "${GREEN}"
+		#	fi
+		#	upgrade_pip "${no_caching}"
+		#fi
 	else
 		# If the length variable is 0, then there is no existing directory with the given virtual environment name. Create a virtual environment
 		# with this directory name and install all of the dependencies.
 		echo "No existing virtual environment found with directory name \"${virtual_env_name}\"." | print_color "${YELLOW}"
 		echo "Creating a new virtual environment with directory name \"${virtual_env_name}\" and installing the dependencies listed in ${filename}" | print_color "${YELLOW}"
 		use_correct_python_version -m venv "./${virtual_env_name}"
-		source ./${virtual_env_name}/Scripts/activate
+		#source ./${virtual_env_name}/Scripts/activate
+		activate_script=$(find  ./ -iwholename "./${virtual_env_name}/*/activate" 2> /dev/null)
+		source "${activate_script}" 2> /dev/null
 		upgrade_pip "${no_caching}"
 		install_dependencies "${no_caching}"
 		echo "Requirements have been installed." | print_color "${GREEN}"

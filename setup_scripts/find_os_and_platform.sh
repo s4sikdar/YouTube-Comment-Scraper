@@ -3,7 +3,7 @@
 # Function to get the operating system. Credit to the following link,
 # as I got the function from here: https://gist.github.com/prabirshrestha/3080525
 function get_os() {
-	os_name=$(uname -o | tr '[:upper:]' '[:lower:]')
+	os_name=$(uname | tr '[:upper:]' '[:lower:]')
 	case ${os_name} in
 		linux*)
 			echo "linux"
