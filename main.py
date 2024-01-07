@@ -55,7 +55,7 @@ def main():
     )
     parser.add_argument(
         '--pattern', type=str, default=None,
-        help='The regular expression pattern you use to parse and match text patterns in comments. By default, all comments are matched and added to the JSON.'
+        help='The regular expression pattern you use to parse and match text patterns in comments (case insensitive). By default, all comments are matched and added to the JSON.'
     )
     parser.add_argument(
         '-o', '--output', type=str, default='comments.json', help='The output file you will store the JSON in. Defaults to "comments.json".'
