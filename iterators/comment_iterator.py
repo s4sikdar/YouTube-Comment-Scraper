@@ -1,5 +1,5 @@
 '''
-This module provides an interface to iterate over Youtube Comments.
+This module provides an interface to iterate over Youtube Comments for regular YouTube videos (not YouTube shorts).
 '''
 from selenium import webdriver
 from selenium.webdriver import ActionChains
@@ -89,6 +89,11 @@ class CommentIterator:
         self.set_time_limit(hours, minutes, seconds)
 
 
+    @staticmethod
+    def regex_pattern():
+        return r'^https://www\.youtube\.com/(?!shorts/)[^\.\s]+$'
+        
+
     def set_time_limit(self, hours, minutes, seconds):
         '''
             set_time_limit(self, hours, seconds, minutes) -> None
@@ -109,6 +114,7 @@ class CommentIterator:
             self.total_time_limit = datetime.timedelta(seconds = self.total_seconds)
             self.start_time = datetime.datetime.now()
 
+
     def time_to_stop_scraping(self):
         '''
             time_to_stop_scraping(self) -> Bool
@@ -127,6 +133,7 @@ class CommentIterator:
                 return True
         return False
 
+
     def get_attribute(self, element, attribute):
         '''
             get_attribute(self, element, attribute) -> Str
@@ -139,6 +146,7 @@ class CommentIterator:
         except:
             return ''
 
+
     def element_exists(self, css_selector):
         '''
             element_exists(self, css_selector) -> Bool
@@ -149,6 +157,7 @@ class CommentIterator:
         except NoSuchElementException:
             return False
         return True
+
 
     def reset_elements(self):
         '''
@@ -167,6 +176,7 @@ class CommentIterator:
         self.parent_comment = None
         self.current_comment_json = {}
 
+
     def update_selectors(self, count, child_count):
         '''
             update_selectors(self, count, child_count) -> None
@@ -184,6 +194,7 @@ class CommentIterator:
         self.comment_reply_link = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child({child_count}) #header-author > yt-formatted-string > a'
         self.more_replies_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #replies #button > ytd-button-renderer > yt-button-shape > button > yt-touch-feedback-shape > div > div.yt-spec-touch-feedback-shape__fill'
         self.first_reply_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child(1) #content-text'
+
 
     def iterate_child(self):
         '''
@@ -241,6 +252,7 @@ class CommentIterator:
                 return None
         return resulting_comment
 
+
     def __iter__(self):
         return self
 
@@ -293,7 +305,4 @@ class CommentIterator:
                     else:
                         return None
                 return resulting_comment
-
-
-
 

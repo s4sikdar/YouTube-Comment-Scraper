@@ -2,20 +2,7 @@ import argparse
 import json
 import sys
 import re
-from iterators.comment_iterator import CommentIterator
-
-
-def test_regex(url):
-    '''
-        test_regex(url) > Bool
-        Check if the url passed in matches a regular expression representing
-        youtube video links. Return True if so, return False otherwise.
-    '''
-    # test that the link passed in matches a regular expression for youtube video links
-    if re.match(r'^https://www\.youtube\.com/[^\.\s]+$', url):
-        return True
-    else:
-        return False
+from iterators.factory import IteratorFactory
 
 
 def valid_arguments(argument_parser):
@@ -48,12 +35,6 @@ def valid_arguments(argument_parser):
         print(
         'The combined total of minutes, hours and seconds specified is less than 30. The combined total of minutes, hours and seconds specified must be at least 30 seconds. Exiting with an error code of 1.',
         file=sys.stderr, flush=True
-        )
-        return False
-    elif not test_regex(argument_parser.url):
-        print(
-            'The link passed in does not appear to be a YouTube video link. You must pass in a YouTube video link to the url parameter. Exiting with an error code of 1.',
-            file=sys.stderr, flush=True
         )
         return False
     return True
@@ -95,7 +76,7 @@ def main():
         'comments': []
     }
     with open(arguments.output, 'w') as output_file:
-        for item in CommentIterator(arguments.url, arguments.limit, arguments.pattern, arguments.hours, arguments.minutes, arguments.seconds):
+        for item in IteratorFactory(arguments.url, arguments.limit, arguments.pattern, arguments.hours, arguments.minutes, arguments.seconds):
             comments['comments'].append(item)
         output_file.write(json.dumps(comments))
 
