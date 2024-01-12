@@ -294,16 +294,20 @@ class CommentIterator:
             self.amount_scrolled += y_pos
             self.total_comments_parsed += 1
             if self.element_exists(self.replies_button_selector):
-                self.parent_comment = self.current_comment
-                self.parent_comment_pos = self.amount_scrolled
-                self.current_comments_json = resulting_comment
-                self.comment_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.replies_button_selector)
-                ActionChains(self.driver).move_to_element(self.comment_replies_button).pause(0.5).click(self.comment_replies_button).perform()
-                if self.regex_pattern and (not self.thread_has_pattern):
-                    comment_match = re.search(self.regex_pattern, resulting_comment['comment content'], re.IGNORECASE)
-                    if comment_match:
-                        self.thread_has_pattern = True
-                return self.iterate_child()
+                try:
+                    self.parent_comment = self.current_comment
+                    self.parent_comment_pos = self.amount_scrolled
+                    self.current_comments_json = resulting_comment
+                    self.comment_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.replies_button_selector)
+                    ActionChains(self.driver).move_to_element(self.comment_replies_button).pause(0.5).click(self.comment_replies_button).perform()
+                except:
+                    return resulting_comment
+                else:
+                    if self.regex_pattern and (not self.thread_has_pattern):
+                        comment_match = re.search(self.regex_pattern, resulting_comment['comment content'], re.IGNORECASE)
+                        if comment_match:
+                            self.thread_has_pattern = True
+                    return self.iterate_child()
             else:
                 self.comment_thread_count += 1
                 self.update_selectors((self.comment_thread_count + 1), (self.reply_count + 1))
