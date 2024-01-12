@@ -10,7 +10,7 @@ import re
 import time
 import json
 import datetime
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 
 
 SECONDS_PER_MINUTE = 60
@@ -201,56 +201,65 @@ class CommentIterator:
             iterate_child(self) -> (anyOf Dict None)
             Iterates through the replies of a youtube comment, aggregates the comment into a dictionary, and returns it.
         '''
-        self.first_reply_comment = WebDriverWait(self.driver, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, self.first_reply_selector))
-        )
-        more_comments = self.element_exists(self.comment_reply_selector) or self.element_exists(self.more_replies_selector)
-        while more_comments:
-            self.current_reply = self.driver.find_element(By.CSS_SELECTOR, self.comment_reply_selector)
-            self.reply_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.comment_reply_channel)
-            name = self.reply_channel_name.text.strip()[1:]
-            self.reply_link = self.driver.find_element(By.CSS_SELECTOR, self.comment_reply_link)
-            reply_text = self.current_reply.text.strip()
-            comment_link = ''
-            y_pos = self.current_reply.location_once_scrolled_into_view['y'] - 100
-            ActionChains(self.driver).scroll_by_amount(0, y_pos).perform()
-            comment_link = self.get_attribute(self.reply_link, 'href')
-            reply_json = {
-                'commenter': name,
-                'comment content': reply_text,
-                'link': comment_link,
-            }
-            if self.regex_pattern and (not self.thread_has_pattern):
-                comment_match = re.search(self.regex_pattern, reply_text, re.IGNORECASE)
-                if comment_match:
-                    self.thread_has_pattern = True
-            self.current_comments_json['children'].append(reply_json)
-            self.reply_count += 1
-            self.total_comments_parsed += 1
-            self.update_selectors((self.comment_thread_count + 1), (self.reply_count + 1))
-            if not self.element_exists(self.comment_reply_selector):
-                if self.element_exists(self.more_replies_selector):
-                    more_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.more_replies_selector)
-                    ActionChains(self.driver).move_to_element(more_replies_button).pause(0.5).click(more_replies_button).perform()
-                    next_comment = WebDriverWait(self.driver,20).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_reply_selector))
-                    )
+        try:
+            self.first_reply_comment = WebDriverWait(self.driver, 20).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, self.first_reply_selector))
+            )
             more_comments = self.element_exists(self.comment_reply_selector) or self.element_exists(self.more_replies_selector)
-        self.reply_count = 0
-        self.comment_thread_count += 1
-        resulting_comment = self.current_comments_json
-        ActionChains(self.driver).scroll_to_element(self.parent_comment).perform()
-        self.comment_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.less_replies_button_selector)
-        ActionChains(self.driver).scroll_to_element(self.comment_replies_button).move_to_element(self.comment_replies_button).pause(0.5).click(self.comment_replies_button).perform()
-        self.update_selectors((self.comment_thread_count + 1), (self.reply_count + 1))
-        comment_thread_has_regex = self.thread_has_pattern
-        self.reset_elements()
-        if self.regex_pattern:
-            if comment_thread_has_regex:
-                return resulting_comment
-            else:
-                return None
-        return resulting_comment
+        except TimeoutException:
+            resulting_comment = self.current_comments_json
+            comment_thread_has_regex = self.thread_has_pattern
+        else:
+            while more_comments:
+                self.current_reply = self.driver.find_element(By.CSS_SELECTOR, self.comment_reply_selector)
+                self.reply_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.comment_reply_channel)
+                name = self.reply_channel_name.text.strip()[1:]
+                self.reply_link = self.driver.find_element(By.CSS_SELECTOR, self.comment_reply_link)
+                reply_text = self.current_reply.text.strip()
+                comment_link = ''
+                y_pos = self.current_reply.location_once_scrolled_into_view['y'] - 100
+                ActionChains(self.driver).scroll_by_amount(0, y_pos).perform()
+                comment_link = self.get_attribute(self.reply_link, 'href')
+                reply_json = {
+                    'commenter': name,
+                    'comment content': reply_text,
+                    'link': comment_link,
+                }
+                if self.regex_pattern and (not self.thread_has_pattern):
+                    comment_match = re.search(self.regex_pattern, reply_text, re.IGNORECASE)
+                    if comment_match:
+                        self.thread_has_pattern = True
+                self.current_comments_json['children'].append(reply_json)
+                self.reply_count += 1
+                self.total_comments_parsed += 1
+                self.update_selectors((self.comment_thread_count + 1), (self.reply_count + 1))
+                if not self.element_exists(self.comment_reply_selector):
+                    if self.element_exists(self.more_replies_selector):
+                        more_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.more_replies_selector)
+                        ActionChains(self.driver).move_to_element(more_replies_button).pause(0.5).click(more_replies_button).perform()
+                        try:
+                            next_comment = WebDriverWait(self.driver,20).until(
+                                EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_reply_selector))
+                            )
+                        except TimeoutException:
+                            break
+                more_comments = self.element_exists(self.comment_reply_selector) or self.element_exists(self.more_replies_selector)
+            self.reply_count = 0
+            self.comment_thread_count += 1
+            resulting_comment = self.current_comments_json
+            ActionChains(self.driver).scroll_to_element(self.parent_comment).perform()
+            self.comment_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.less_replies_button_selector)
+            ActionChains(self.driver).scroll_to_element(self.comment_replies_button).move_to_element(self.comment_replies_button).pause(0.5).click(self.comment_replies_button).perform()
+            self.update_selectors((self.comment_thread_count + 1), (self.reply_count + 1))
+            comment_thread_has_regex = self.thread_has_pattern
+            self.reset_elements()
+        finally:
+            if self.regex_pattern:
+                if comment_thread_has_regex:
+                    return resulting_comment
+                else:
+                    return None
+            return resulting_comment
 
 
     def __iter__(self):
