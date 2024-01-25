@@ -16,6 +16,7 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException
 SECONDS_PER_MINUTE = 60
 SECONDS_PER_HOUR = 3600
 
+
 class CommentIterator:
     '''
         CommentIterator(youtube_video_url, comment_limit=10, regex=None) -> Iterator
@@ -92,7 +93,12 @@ class CommentIterator:
     @staticmethod
     def regex_pattern():
         return r'^https://www\.youtube\.com/(?!shorts/)[^\.\s]+$'
-        
+
+    #def abort_exception(self, func, *args, **kwargs):
+    #    try:
+    #        func(*args, **kwargs)
+    #    except:
+    #        raise StopIteration
 
     def set_time_limit(self, hours, minutes, seconds):
         '''
@@ -265,8 +271,7 @@ class CommentIterator:
     def __iter__(self):
         return self
 
-
-    def __next__(self):
+    def go_to_next(self):
         if self.time_to_stop_scraping():
             self.driver.quit()
             raise StopIteration
@@ -319,3 +324,8 @@ class CommentIterator:
                         return None
                 return resulting_comment
 
+    def __next__(self):
+        try:
+            return self.go_to_next()
+        except Exception as err:
+            raise StopIteration
