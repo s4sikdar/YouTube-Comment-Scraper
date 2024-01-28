@@ -4,4 +4,5 @@ iterators/__pycache__/**
 iterators/implementations/__pycache__/**
 __pycache__/**
 comments.json
-links.txt
+./links.txt
+debug.log

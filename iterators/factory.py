@@ -6,7 +6,6 @@ class IteratorFactory:
     iterators = {
         CommentIterator.__name__: CommentIterator
     }
-    print(CommentIterator.__name__)
 
     def __new__(cls, url, *args, **kwargs):
         for category in cls.iterators:

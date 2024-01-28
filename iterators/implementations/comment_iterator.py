@@ -11,6 +11,8 @@ import time
 import json
 import datetime
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from functools import wraps
+import logging
 
 
 SECONDS_PER_MINUTE = 60
@@ -39,10 +41,14 @@ class CommentIterator:
                     back. If the comment has replies, the regular expression is tested against the replies, and the information is returned if at
                     least one reply (or the original comment) matches the regular expression. If there are no matches, None is returned.
     '''
-    def __init__(self, youtube_url, comment_limit=None, regex=None, hours=0, minutes=0, seconds=0):
+    def __init__(self, youtube_url, comment_limit=None, regex=None, hours=0, minutes=0, seconds=0, enabled_logging=True, logfile='debug.log'):
         self.comment_thread_count = 0
         self.reply_count = 0
+        self.hours = 0
+        self.minutes = 0
+        self.seconds = 0
         self.total_comments_parsed = 0
+        self.youtube_url = youtube_url
         self.limit = comment_limit
         self.driver = webdriver.Chrome()
         self.title_selector = '#title > h1 > yt-formatted-string'
@@ -72,22 +78,48 @@ class CommentIterator:
         self.more_replies_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #replies #button > ytd-button-renderer > yt-button-shape > button > yt-touch-feedback-shape > div > div.yt-spec-touch-feedback-shape__fill'
         self.first_reply_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child(1) #content-text'
         self.current_comment_json = {}
-        # Startup steps
-        self.driver.get(youtube_url)
-        self.driver.maximize_window()
-        title = WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, self.title_selector))
-        )
-        y_pos = title.location_once_scrolled_into_view['y'] - 100
-        ActionChains(self.driver).scroll_by_amount(0,y_pos).perform()
-        self.amount_scrolled += y_pos
-        comment_number = WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_number_selector))
-        )
-        total_comments = int(''.join(comment_number.text.strip().split(',')))
-        if self.limit == None:
-            self.limit = total_comments
-        self.set_time_limit(hours, minutes, seconds)
+        self.started_yet = False
+        self.log_file = logfile
+        self.enabled_logging = enabled_logging
+        # format string taken from logging documentation: https://docs.python.org/3/library/logging.html
+        FORMAT = '%(asctime)s %(message)s'
+        logging.basicConfig(filename=self.log_file, level=logging.ERROR, format=FORMAT)
+        self.logger = logging.getLogger(__name__)
+
+
+    def log_debug_output(func):
+        @wraps(func)
+        def log_output(self, *args, **kwargs):
+            if self.enabled_logging:
+                self.logger.setLevel(logging.DEBUG)
+            self.logger.debug(f'comment number: {(self.comment_thread_count + 1)}')
+            self.logger.debug(f'comment reply number: {(self.reply_count + 1)}')
+            return func(self, *args, **kwargs)
+        return log_output
+
+
+    def startup(self):
+        '''
+            startup(self) -> None
+            startup steps to start the scraping process.
+        '''
+        if not self.started_yet:
+            self.started_yet = True
+            self.driver.get(self.youtube_url)
+            self.driver.maximize_window()
+            title = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, self.title_selector))
+            )
+            y_pos = title.location_once_scrolled_into_view['y'] - 100
+            ActionChains(self.driver).scroll_by_amount(0,y_pos).perform()
+            self.amount_scrolled += y_pos
+            comment_number = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_number_selector))
+            )
+            total_comments = int(''.join(comment_number.text.strip().split(',')))
+            if self.limit == None:
+                self.limit = total_comments
+            self.set_time_limit(self.hours, self.minutes, self.seconds)
 
 
     @staticmethod
@@ -183,6 +215,7 @@ class CommentIterator:
         self.current_comment_json = {}
 
 
+    @log_debug_output
     def update_selectors(self, count, child_count):
         '''
             update_selectors(self, count, child_count) -> None
@@ -326,6 +359,8 @@ class CommentIterator:
 
     def __next__(self):
         try:
+            self.startup()
             return self.go_to_next()
         except Exception as err:
+            logging.error(err)
             raise StopIteration
