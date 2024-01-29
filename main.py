@@ -69,14 +69,23 @@ def main():
     parser.add_argument(
         '--seconds', type=int, default=0, help='The maximum number of seconds you want the program to run.'
     )
+    parser.add_argument(
+        '-L', '--enabled_logging', help='enable logging (sets the logger level to debug)', action='store_true'
+    )
+    parser.add_argument(
+        '-F','--logfile', type=str, default='debug.log', help='the logfile that you want to send logging output to'
+    )
     arguments = parser.parse_args()
     if not valid_arguments(arguments):
         exit(1)
     comments = {
         'comments': []
     }
-    with open(arguments.output, 'w') as output_file:
-        for item in IteratorFactory(arguments.url, arguments.limit, arguments.pattern, arguments.hours, arguments.minutes, arguments.seconds):
+    kwargs = vars(arguments)
+    url = kwargs.pop('url')
+    output = kwargs.pop('output')
+    with open(output, 'w') as output_file:
+        for item in IteratorFactory(url, **kwargs):
             comments['comments'].append(item)
         output_file.write(json.dumps(comments))
 

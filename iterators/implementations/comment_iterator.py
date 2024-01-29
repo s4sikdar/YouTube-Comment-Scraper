@@ -13,6 +13,7 @@ import datetime
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from functools import wraps
 import logging
+import traceback
 
 
 SECONDS_PER_MINUTE = 60
@@ -41,7 +42,7 @@ class CommentIterator:
                     back. If the comment has replies, the regular expression is tested against the replies, and the information is returned if at
                     least one reply (or the original comment) matches the regular expression. If there are no matches, None is returned.
     '''
-    def __init__(self, youtube_url, comment_limit=None, regex=None, hours=0, minutes=0, seconds=0, enabled_logging=True, logfile='debug.log'):
+    def __init__(self, youtube_url, limit=None, pattern=None, hours=0, minutes=0, seconds=0, enabled_logging=True, logfile='debug.log'):
         self.comment_thread_count = 0
         self.reply_count = 0
         self.hours = 0
@@ -49,7 +50,7 @@ class CommentIterator:
         self.seconds = 0
         self.total_comments_parsed = 0
         self.youtube_url = youtube_url
-        self.limit = comment_limit
+        self.limit = limit
         self.driver = webdriver.Chrome()
         self.title_selector = '#title > h1 > yt-formatted-string'
         self.current_comment = None
@@ -59,7 +60,7 @@ class CommentIterator:
         self.current_reply = None
         self.reply_link = None
         self.reply_channel_name = None
-        self.regex_pattern = regex
+        self.regex_pattern = pattern
         self.amount_scrolled = 0
         self.thread_has_pattern = False
         self.parent_comment = None
@@ -81,10 +82,7 @@ class CommentIterator:
         self.started_yet = False
         self.log_file = logfile
         self.enabled_logging = enabled_logging
-        # format string taken from logging documentation: https://docs.python.org/3/library/logging.html
-        FORMAT = '%(asctime)s %(message)s'
-        logging.basicConfig(filename=self.log_file, level=logging.ERROR, format=FORMAT)
-        self.logger = logging.getLogger(__name__)
+        self.driver_started = False
 
 
     def log_debug_output(func):
@@ -92,8 +90,13 @@ class CommentIterator:
         def log_output(self, *args, **kwargs):
             if self.enabled_logging:
                 self.logger.setLevel(logging.DEBUG)
-            self.logger.debug(f'comment number: {(self.comment_thread_count + 1)}')
-            self.logger.debug(f'comment reply number: {(self.reply_count + 1)}')
+            #comment_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.commenter_selector)
+            #commenter_name = comment_channel_name.text.strip()[1:]
+            #reply_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.comment_reply_channel)
+            #name = reply_channel_name.text.strip()[1:]
+            #commenter_name = self.current_comment_json['commenter']
+            self.logger.debug(f'comment number: {(self.comment_thread_count + 1)}, comment info: {self.current_comment_json}')
+            #self.logger.debug(f'comment reply number: {(self.reply_count + 1)}, comment reply name: {name}')
             return func(self, *args, **kwargs)
         return log_output
 
@@ -104,7 +107,12 @@ class CommentIterator:
             startup steps to start the scraping process.
         '''
         if not self.started_yet:
+            # format string taken from logging documentation: https://docs.python.org/3/library/logging.html
+            FORMAT = '%(asctime)s %(message)s'
+            logging.basicConfig(filename=self.log_file, level=logging.ERROR, format=FORMAT)
+            self.logger = logging.getLogger(__name__)
             self.started_yet = True
+            self.driver_started = True
             self.driver.get(self.youtube_url)
             self.driver.maximize_window()
             title = WebDriverWait(self.driver, 10).until(
@@ -215,7 +223,6 @@ class CommentIterator:
         self.current_comment_json = {}
 
 
-    @log_debug_output
     def update_selectors(self, count, child_count):
         '''
             update_selectors(self, count, child_count) -> None
@@ -235,6 +242,7 @@ class CommentIterator:
         self.first_reply_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child(1) #content-text'
 
 
+    @log_debug_output
     def iterate_child(self):
         '''
             iterate_child(self) -> (anyOf Dict None)
@@ -315,6 +323,7 @@ class CommentIterator:
                 )
             except:
                 self.driver.quit()
+                self.driver_started = False
                 raise StopIteration
             self.comment_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.commenter_selector)
             name = self.comment_channel_name.text.strip()[1:]
@@ -362,5 +371,6 @@ class CommentIterator:
             self.startup()
             return self.go_to_next()
         except Exception as err:
-            logging.error(err)
+            if self.driver_started:
+                self.driver.quit()
             raise StopIteration
