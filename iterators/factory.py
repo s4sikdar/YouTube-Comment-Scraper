@@ -1,10 +1,12 @@
 import re
 from iterators.implementations.comment_iterator import CommentIterator
+from iterators.implementations.youtube_shorts_iterator import YoutubeShortsIterator
 
 
 class IteratorFactory:
     iterators = {
-        CommentIterator.__name__: CommentIterator
+        CommentIterator.__name__: CommentIterator,
+        YoutubeShortsIterator.__name__: YoutubeShortsIterator
     }
 
     def __new__(cls, url, *args, **kwargs):
