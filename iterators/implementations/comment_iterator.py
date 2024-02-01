@@ -88,8 +88,6 @@ class CommentIterator:
     def log_debug_output(func):
         @wraps(func)
         def log_output(self, *args, **kwargs):
-            if self.enabled_logging:
-                self.logger.setLevel(logging.DEBUG)
             #comment_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.commenter_selector)
             #commenter_name = comment_channel_name.text.strip()[1:]
             #reply_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.comment_reply_channel)
@@ -115,19 +113,21 @@ class CommentIterator:
             self.driver_started = True
             self.driver.get(self.youtube_url)
             self.driver.maximize_window()
-            title = WebDriverWait(self.driver, 10).until(
+            title = WebDriverWait(self.driver, timeout=10, poll_frequency=0.1).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, self.title_selector))
             )
             y_pos = title.location_once_scrolled_into_view['y'] - 100
             ActionChains(self.driver).scroll_by_amount(0,y_pos).perform()
             self.amount_scrolled += y_pos
-            comment_number = WebDriverWait(self.driver, 10).until(
+            comment_number = WebDriverWait(self.driver, timeout=10, poll_frequency=0.1).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_number_selector))
             )
             total_comments = int(''.join(comment_number.text.strip().split(',')))
             if self.limit == None:
                 self.limit = total_comments
             self.set_time_limit(self.hours, self.minutes, self.seconds)
+            if self.enabled_logging:
+                self.logger.setLevel(logging.DEBUG)
 
 
     @staticmethod
@@ -249,13 +249,30 @@ class CommentIterator:
             Iterates through the replies of a youtube comment, aggregates the comment into a dictionary, and returns it.
         '''
         try:
-            self.first_reply_comment = WebDriverWait(self.driver, 20).until(
+            self.first_reply_comment = WebDriverWait(self.driver, timeout=20, poll_frequency=0.1).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, self.first_reply_selector))
             )
             more_comments = self.element_exists(self.comment_reply_selector) or self.element_exists(self.more_replies_selector)
-        except TimeoutException:
+        except:
+            self.reply_count = 0
+            self.comment_thread_count += 1
             resulting_comment = self.current_comments_json
             comment_thread_has_regex = self.thread_has_pattern
+            ActionChains(self.driver).scroll_to_element(self.comment_replies_button).move_to_element(self.comment_replies_button).pause(0.5).click(self.comment_replies_button).perform()
+            self.update_selectors((self.comment_thread_count + 1), (self.reply_count + 1))
+            comment_thread_has_regex = self.thread_has_pattern
+            self.reset_elements()
+            #self.logger.debug(f'comment number: {(self.comment_thread_count + 1)}, comment info: {self.current_comment_json}')
+            #self.logger.debug(f'self.comment_selector = {self.comment_selector}')
+            #self.logger.debug(f'self.commenter_selector = {self.commenter_selector}')
+            #self.logger.debug(f'self.comment_link_selector = {self.comment_link_selector}')
+            #self.logger.debug(f'self.replies_button_selector = {self.replies_button_selector}')
+            #self.logger.debug(f'self.less_replies_button_selector = {self.less_replies_button_selector}')
+            #self.logger.debug(f'self.comment_reply_selector = {self.comment_reply_selector}')
+            #self.logger.debug(f'self.comment_reply_channel = {self.comment_reply_channel}')
+            #self.logger.debug(f'self.comment_reply_link = {self.comment_reply_link}')
+            #self.logger.debug(f'self.more_replies_selector = {self.more_replies_selector}')
+            #self.logger.debug(f'self.first_reply_selector = {self.first_reply_selector}')
         else:
             while more_comments:
                 self.current_reply = self.driver.find_element(By.CSS_SELECTOR, self.comment_reply_selector)
@@ -285,7 +302,7 @@ class CommentIterator:
                         more_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.more_replies_selector)
                         ActionChains(self.driver).move_to_element(more_replies_button).pause(0.5).click(more_replies_button).perform()
                         try:
-                            next_comment = WebDriverWait(self.driver,20).until(
+                            next_comment = WebDriverWait(self.driver, timeout=20, poll_frequency=0.1).until(
                                 EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_reply_selector))
                             )
                         except TimeoutException:
@@ -318,7 +335,7 @@ class CommentIterator:
             raise StopIteration
         else:
             try:
-                self.current_comment = WebDriverWait(self.driver, 20).until(
+                self.current_comment = WebDriverWait(self.driver, timeout=20, poll_frequency=0.1).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_selector))
                 )
             except:
