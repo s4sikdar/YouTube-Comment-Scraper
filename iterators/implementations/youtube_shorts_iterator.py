@@ -41,10 +41,17 @@ class YoutubeShortsIterator:
         self.parent_comment_pos = 0
         self.time_limit_exists = False
         # Comment selectors
-        self.comment_box_selector = '#contents'
         self.play_button_selector = 'ytd-shorts-player-controls yt-icon-button:nth-child(1) button'
         self.mute_button_selector = 'ytd-shorts-player-controls yt-icon-button:nth-child(2) button'
         self.expand_comments_button = '#comments-button ytd-button-renderer yt-button-shape label button'
+        # CSS selectors for the section containing comments
+        self.comment_box_selector = '#shorts-container #watch-while-engagement-panel #contents #contents'
+        self.commenter_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) '\
+                                '#body #main #header-author > h3 #author-text > span'
+        self.comment_link_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) '\
+                                    '#body #main #header-author #published-time-text > a'
+        self.comment_text_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) '\
+                                    '#body #main #expander #content #content-text > span'
         self.current_comment_json = {}
         self.started_yet = False
         self.log_file = logfile
@@ -90,25 +97,29 @@ class YoutubeShortsIterator:
                play_button.click()
 
 
-    def setup(self):
+    def setup(func):
         '''
-            startup(self) -> None
-            startup steps to start the scraping process.
+            startup(function) -> function
+            a decorator to do setup steps before iteration
         '''
-        if not self.started_yet:
-            # format string taken from logging documentation: https://docs.python.org/3/library/logging.html
-            FORMAT = '%(asctime)s %(message)s'
-            logging.basicConfig(filename=self.log_file, level=logging.ERROR, format=FORMAT)
-            self.logger = logging.getLogger(__name__)
-            self.started_yet = True
-            self.driver_started = True
-            self.driver.get(self.youtube_url)
-            self.driver.maximize_window()
-            self.pause_video()
-            self.mute_video()
-            expand_comments_button = self.get_selector(self.expand_comments_button)
-            expand_comments_button.click()
-            time.sleep(10)
+        @wraps(func)
+        def setup_beforehand(self, *args, **kwargs):
+            if not self.started_yet:
+                # format string taken from logging documentation: https://docs.python.org/3/library/logging.html
+                FORMAT = '%(asctime)s %(message)s'
+                logging.basicConfig(filename=self.log_file, level=logging.ERROR, format=FORMAT)
+                self.logger = logging.getLogger(__name__)
+                self.started_yet = True
+                self.driver_started = True
+                self.driver.get(self.youtube_url)
+                self.driver.maximize_window()
+                self.pause_video()
+                self.mute_video()
+                expand_comments_button = self.get_selector(self.expand_comments_button)
+                expand_comments_button.click()
+                time.sleep(10)
+            return func(self, *args, **kwargs)
+        return setup_beforehand
 
 
     def log_debug_output(func):
@@ -131,8 +142,8 @@ class YoutubeShortsIterator:
         return self
 
 
+    @setup
     def __next__(self):
-        self.setup()
         self.driver.quit()
         raise StopIteration
 
