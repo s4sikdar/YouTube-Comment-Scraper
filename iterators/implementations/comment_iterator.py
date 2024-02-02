@@ -254,25 +254,10 @@ class CommentIterator:
             )
             more_comments = self.element_exists(self.comment_reply_selector) or self.element_exists(self.more_replies_selector)
         except:
-            self.reply_count = 0
-            self.comment_thread_count += 1
-            resulting_comment = self.current_comments_json
-            comment_thread_has_regex = self.thread_has_pattern
-            ActionChains(self.driver).scroll_to_element(self.comment_replies_button).move_to_element(self.comment_replies_button).pause(0.5).click(self.comment_replies_button).perform()
-            self.update_selectors((self.comment_thread_count + 1), (self.reply_count + 1))
-            comment_thread_has_regex = self.thread_has_pattern
-            self.reset_elements()
-            #self.logger.debug(f'comment number: {(self.comment_thread_count + 1)}, comment info: {self.current_comment_json}')
-            #self.logger.debug(f'self.comment_selector = {self.comment_selector}')
-            #self.logger.debug(f'self.commenter_selector = {self.commenter_selector}')
-            #self.logger.debug(f'self.comment_link_selector = {self.comment_link_selector}')
-            #self.logger.debug(f'self.replies_button_selector = {self.replies_button_selector}')
-            #self.logger.debug(f'self.less_replies_button_selector = {self.less_replies_button_selector}')
-            #self.logger.debug(f'self.comment_reply_selector = {self.comment_reply_selector}')
-            #self.logger.debug(f'self.comment_reply_channel = {self.comment_reply_channel}')
-            #self.logger.debug(f'self.comment_reply_link = {self.comment_reply_link}')
-            #self.logger.debug(f'self.more_replies_selector = {self.more_replies_selector}')
-            #self.logger.debug(f'self.first_reply_selector = {self.first_reply_selector}')
+            current_comment = self.current_comments_json
+            # log these errors if the logger level is set to debug
+            self.logger.debug(f'failed to find replies for comment number {(self.comment_thread_count + 1)} and css selector {self.first_reply_selector}')
+            self.logger.debug(f'comment info for comment number {(self.comment_thread_count + 1)}: {current_comment}')
         else:
             while more_comments:
                 self.current_reply = self.driver.find_element(By.CSS_SELECTOR, self.comment_reply_selector)
@@ -308,6 +293,7 @@ class CommentIterator:
                         except TimeoutException:
                             break
                 more_comments = self.element_exists(self.comment_reply_selector) or self.element_exists(self.more_replies_selector)
+        finally:
             self.reply_count = 0
             self.comment_thread_count += 1
             resulting_comment = self.current_comments_json
@@ -317,7 +303,6 @@ class CommentIterator:
             self.update_selectors((self.comment_thread_count + 1), (self.reply_count + 1))
             comment_thread_has_regex = self.thread_has_pattern
             self.reset_elements()
-        finally:
             if self.regex_pattern:
                 if comment_thread_has_regex:
                     return resulting_comment
