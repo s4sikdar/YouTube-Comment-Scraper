@@ -44,14 +44,30 @@ class YoutubeShortsIterator:
         self.play_button_selector = 'ytd-shorts-player-controls yt-icon-button:nth-child(1) button'
         self.mute_button_selector = 'ytd-shorts-player-controls yt-icon-button:nth-child(2) button'
         self.expand_comments_button = '#comments-button ytd-button-renderer yt-button-shape label button'
-        # CSS selectors for the section containing comments
         self.comment_box_selector = '#shorts-container #watch-while-engagement-panel #contents #contents'
+        # CSS selectors for the section containing comments
         self.commenter_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) '\
                                 '#body #main #header-author > h3 #author-text > span'
         self.comment_link_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) '\
                                     '#body #main #header-author #published-time-text > a'
         self.comment_text_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) '\
                                     '#body #main #expander #content #content-text > span'
+        self.expand_replies_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) ' \
+                                    '#replies #expander #more-replies > yt-button-shape > button'
+        self.less_replies_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) ' \
+                                    '#replies #expander #less-replies > yt-button-shape > button'
+        self.reply_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) ' \
+                                '#replies #expander #expander-contents #contents > '\
+                                f'ytd-comment-renderer:nth-child({(self.comment_thread_count + 1)})'
+        self.reply_author_name_selector = f'{self.reply_selector} #body #author-text > yt-formatted-string'
+        self.reply_link_selector = f'{self.reply_selector} #header-author > yt-formatted-string > a'
+        self.reply_text_selector = f'{self.reply_selector} #comment-content #content #content-text'
+        self.first_reply_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) '\
+                                    '#replies #expander #expander-contents #contents > '\
+                                    'ytd-comment-renderer:nth-child(1) #content-text'
+        self.more_replies_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) '\
+                                    '#replies #expander #expander-contents #contents > '\
+                                    'ytd-continuation-item-renderer #button ytd-button-renderer yt-button-shape button'
         self.current_comment_json = {}
         self.started_yet = False
         self.log_file = logfile
@@ -69,6 +85,20 @@ class YoutubeShortsIterator:
             EC.presence_of_element_located((By.CSS_SELECTOR, css_selector))
         )
         return element_to_find
+
+
+    def element_exists(self, css_selector):
+        '''
+            element_exists(self, css_selector) -> Bool
+            a method to check if a css selector exists, returns True if so, False otherwise
+        '''
+        try:
+            element_to_find = WebDriverWait(self.driver, timeout=5, poll_frequency=0.1).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, css_selector))
+            )
+        except NoSuchElementException:
+            return False
+        return True
 
 
     def mute_video(self):
@@ -120,6 +150,66 @@ class YoutubeShortsIterator:
                 time.sleep(10)
             return func(self, *args, **kwargs)
         return setup_beforehand
+
+
+    def reset_elements(self):
+        '''
+            reset_eleemnts(self) -> None
+            resets all of the attributes used for finding elements to be None, and the dictionary for
+            keeping comment information to be an empty dictinary.
+        '''
+        self.current_comment = None
+        self.comment_channel_name = None
+        self.comment_link = None
+        self.comment_replies_button = None
+        self.thread_has_pattern = False
+        self.current_reply = None
+        self.reply_link = None
+        self.reply_channel_name = None
+        self.parent_comment = None
+        self.current_comment_json = {}
+
+
+    def update_selectors(self, count, child_count):
+        '''
+            update_selectors(self, count, child_count) -> None
+            updates the values of the necessary selectors for iterating through comments. It uses count and child count
+            for the current comment thread count and the current reply count respectively (i.e. self.comment_thread_count
+            would be used for count, and self.reply_count would be used for child_count).
+        '''
+        #self.comment_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #content-text'
+        #self.commenter_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #author-text'
+        #self.comment_link_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #header-author > yt-formatted-string > a'
+        #self.replies_button_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #more-replies > yt-button-shape > button > yt-touch-feedback-shape > div > div.yt-spec-touch-feedback-shape__fill'
+        #self.less_replies_button_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #less-replies > yt-button-shape > button > yt-touch-feedback-shape > div > div.yt-spec-touch-feedback-shape__fill'
+        #self.comment_reply_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child({child_count}) #content-text'
+        #self.comment_reply_channel = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child({child_count}) #author-text > yt-formatted-string'
+        #self.comment_reply_link = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child({child_count}) #header-author > yt-formatted-string > a'
+        #self.more_replies_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #replies #button > ytd-button-renderer > yt-button-shape > button > yt-touch-feedback-shape > div > div.yt-spec-touch-feedback-shape__fill'
+        #self.first_reply_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child(1) #content-text'
+        self.commenter_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) '\
+                                '#body #main #header-author > h3 #author-text > span'
+        self.comment_link_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) '\
+                                    '#body #main #header-author #published-time-text > a'
+        self.comment_text_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) '\
+                                    '#body #main #expander #content #content-text > span'
+        self.expand_replies_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) ' \
+                                    '#replies #expander #more-replies > yt-button-shape > button'
+        self.less_replies_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) ' \
+                                    '#replies #expander #less-replies > yt-button-shape > button'
+        self.reply_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) ' \
+                                '#replies #expander #expander-contents #contents > '\
+                                f'ytd-comment-renderer:nth-child({(self.comment_thread_count + 1)})'
+        self.reply_author_name_selector = f'{self.reply_selector} #body #author-text > yt-formatted-string'
+        self.reply_link_selector = f'{self.reply_selector} #header-author > yt-formatted-string > a'
+        self.reply_text_selector = f'{self.reply_selector} #comment-content #content #content-text'
+        self.first_reply_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) '\
+                                    '#replies #expander #expander-contents #contents > '\
+                                    'ytd-comment-renderer:nth-child(1) #content-text'
+        self.more_replies_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) '\
+                                    '#replies #expander #expander-contents #contents > '\
+                                    'ytd-continuation-item-renderer #button ytd-button-renderer yt-button-shape button'
+
 
 
     def log_debug_output(func):
