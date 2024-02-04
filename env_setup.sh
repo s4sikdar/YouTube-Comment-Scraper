@@ -227,38 +227,6 @@ function run_setup() {
 		else
 			remove_and_reinstall_venv "${virtual_env_name}"
 		fi
-		#source ./${virtual_env_name}/Scripts/activate 2> /dev/null
-		#if [ ${?} -ne 0 ]
-		#then
-		#	echo "Existing \"${virtual_env_name}\" directory found that is not a virtual environment directory." | print_color "${YELLOW}"
-		#	echo "This script will delete it, install a new virtual environment with directory name \"${virtual_env_name}\", and install dependencies." | print_color "${YELLOW}"
-		#	rm -r "./${virtual_env_name}"
-		#	use_correct_python_version -m venv "./${virtual_env_name}"
-		#	source ./${virtual_env_name}/Scripts/activate
-		#	upgrade_pip "${no_caching}"
-		#	install_dependencies "${no_caching}"
-		#	echo "Requirements have been installed." | print_color "${GREEN}"
-		#else
-		#	# Check the current package dependency listing and compare it with requirements.txt using the diff command to determine if there
-		#	# are any differences in package installed (i.e. different version, different packages installed, etc.)
-		#	use_correct_python_version -m pip freeze > ${tempfile}
-		#	diff ${tempfile} ./requirements.txt -ZEbB > ${diff_output}
-		#	lines_difference=$(wc -l ${diff_output} | awk '{ print $1 }')
-		#	if [ ${lines_difference} -gt 0 ]
-		#	then
-		#		echo "Existing package installations were found that differ from the dependencies in ${filename}" | print_color "${YELLOW}"
-		#		echo "Removing all existing dependencies and installing the dependencies in ${filename}" | print_color "${YELLOW}"
-		#		upgrade_pip "${no_caching}"
-		#		use_correct_python_version -m pip uninstall -r ${tempfile} -y --quiet
-		#		if [ "${no_caching}" = true ]
-		#		then
-		#			use_correct_python_version -m pip cache purge 2> /dev/null
-		#		fi
-		#		install_dependencies "${no_caching}"
-		#		echo "Requirements have been installed." | print_color "${GREEN}"
-		#	fi
-		#	upgrade_pip "${no_caching}"
-		#fi
 	else
 		# If the length variable is 0, then there is no existing directory with the given virtual environment name. Create a virtual environment
 		# with this directory name and install all of the dependencies.
