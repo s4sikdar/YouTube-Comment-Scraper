@@ -41,6 +41,7 @@ class YoutubeShortsIterator:
         self.parent_comment = None
         self.parent_comment_pos = 0
         self.time_limit_exists = False
+        self.pixels_left_from_parent = 0
         # Comment selectors
         self.play_button_selector = 'ytd-shorts-player-controls yt-icon-button:nth-child(1) button'
         self.mute_button_selector = 'ytd-shorts-player-controls yt-icon-button:nth-child(2) button'
@@ -83,8 +84,8 @@ class YoutubeShortsIterator:
         return r'^https://www\.youtube\.com/(shorts\/)[^\.\s]+$'
 
 
-    def get_selector(self, css_selector):
-        element_to_find = WebDriverWait(self.driver, timeout=10, poll_frequency=0.1).until(
+    def get_selector(self, css_selector, wait_time=10):
+        element_to_find = WebDriverWait(self.driver, timeout=wait_time, poll_frequency=0.1).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, css_selector))
         )
         return element_to_find
@@ -109,7 +110,7 @@ class YoutubeShortsIterator:
             mute_video(self) -> None
             find the mute button on the youtube short video, and ensure the video is muted
         '''
-        mute_button = self.get_selector(self.mute_button_selector)
+        mute_button = self.get_selector(self.mute_button_selector, wait_time=60)
         aria_label_value = mute_button.get_attribute('aria-label')
         if aria_label_value:
            aria_label_value = aria_label_value.casefold()
@@ -122,7 +123,7 @@ class YoutubeShortsIterator:
             play_video(self) -> None
             find the play button on the youtube short video, and ensure the video is paused
         '''
-        play_button = self.get_selector(self.play_button_selector)
+        play_button = self.get_selector(self.play_button_selector, wait_time=60)
         aria_label_value = play_button.get_attribute('aria-label')
         if aria_label_value:
            aria_label_value = aria_label_value.casefold()
@@ -245,8 +246,8 @@ class YoutubeShortsIterator:
             time limit, then we return True (indicating we should stop scraping comments).
             Otherwise, return False.
         '''
-        #if self.limit and self.total_comments_parsed >= self.limit:
-        if self.total_comments_parsed >= 30:
+        if self.limit and self.total_comments_parsed >= self.limit:
+        #if self.total_comments_parsed >= 30:
             return True
         elif self.time_limit_exists:
             current_time = datetime.datetime.now()
@@ -270,37 +271,51 @@ class YoutubeShortsIterator:
             return func(self, *args, **kwargs)
         return log_output
 
-    def scroll_into_view(self, element, buffer_from_top=15):
+    def scroll_out_of_view(self, element):
         '''
-            scroll_into_view(self, element, buffer_from_top) -> None
-            scroll_into_view(self, element) -> None
-            scroll_into_view: YouTubeShortsIterator selenium.webdriver.remote.webelement.WebElement -> None
-            Scrolls an element such that it is as close to the top of the comment box as possible with a buffer of 100 pixels.
-            The element passed in is of type selenium.webdriver.remote.webelement.WebElement . The buffer_from_top
-            parameter is the number of pixels that the comment should be buffered from the top of the container.
+            scroll_out_of_view(self, element) -> None
+            scroll_out_of_view: YouTubeShortsIterator selenium.webdriver.remote.webelement.WebElement -> None
+            scrolls the container of the element by the total height of the given element (including margins).
+            This is normally used with the top-most visible element in the container so that it is scrolled out
+            of visibility. The element passed in is of type selenium.webdriver.remote.webelement.WebElement .
         '''
         comment_box_container = WebDriverWait(self.driver, timeout=20, poll_frequency=0.1).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_box_selector))
         )
         comment_box_location = comment_box_container.location
         y_offset = comment_box_location['y']
+        margin_top = element.value_of_css_property('margin-top').split('px')[0]
+        margin_bottom = element.value_of_css_property('margin-bottom').split('px')[0]
+        margin_top = int(margin_top)
+        margin_bottom = int(margin_bottom)
         # Log element location and dimension info
         self.logger.debug(f'element id: {element.id}')
         self.logger.debug(f'element dimensions: {element.rect}')
         self.logger.debug(f'element location: {element.location}')
         self.logger.debug(f'element size: {element.size}')
-        amount_to_scroll = element.size['height'] - buffer_from_top
+        self.logger.debug(f'margin-top of element: {margin_top}, margin-bottom of element: {margin_bottom}\n')
+        amount_to_scroll = max((element.size['height'] + margin_top + margin_bottom), 0)
+        #self.pixels_left_from_parent = margin
         # offset the scrolling responsibilities to JavaScript
         try:
             self.driver.execute_script(f'document.querySelector("{self.comment_box_selector}").scrollTop += {amount_to_scroll}')
-            time.sleep(1)
+            #time.sleep(1)
             #breakpoint()
             #ActionChains(self.driver).scroll_to_element(element).perform()
         except Exception as err:
-            breakpoint()
+            #breakpoint()
             print(err)
             self.logger.debug(err)
             self.logger.debug(err.__traceback__)
+            self.logger.debug(err.__cause__)
+            self.logger.debug(err.__context__)
+            #self.logger.debug(traceback.print_tb())
+            #self.logger.debug(traceback.print_exception())
+            #self.logger.debug(traceback.print_stack())
+            self.logger.debug('traceback')
+            self.logger.debug(traceback.print_tb(err.__traceback__))
+            self.logger.debug(traceback.print_exception(err))
+            self.logger.debug(traceback.print_stack())
         #self.amount_scrolled += 100
 
     def go_to_next(self):
@@ -319,8 +334,14 @@ class YoutubeShortsIterator:
                 )
                 # current_thread_selector
             except Exception as err:
-                self.logger.debug(err)
-                self.logger.debug(err.__traceback__)
+                self.logger.exception(err)
+                #self.logger.debug(err.__traceback__)
+                #self.logger.debug(err.__cause__)
+                #self.logger.debug(err.__context__)
+                #self.logger.debug('traceback')
+                #self.logger.debug(traceback.print_tb(err.__traceback__))
+                #self.logger.debug(traceback.print_exception(err))
+                #self.logger.debug(traceback.print_stack())
                 self.driver.quit()
                 self.driver_started = False
                 raise StopIteration
@@ -336,7 +357,7 @@ class YoutubeShortsIterator:
                 'link': comment_link,
                 'children': []
             }
-            self.scroll_into_view(current_thread)
+            self.scroll_out_of_view(current_thread)
             #y_pos = self.current_comment.location_once_scrolled_into_view['y'] - 100
             #ActionChains(self.driver).scroll_by_amount(0, y_pos).perform()
             self.total_comments_parsed += 1
@@ -377,9 +398,16 @@ class YoutubeShortsIterator:
     @setup
     def __next__(self):
         #self.driver.quit()
-        return self.go_to_next()
+        try:
+            return self.go_to_next()
+        except Exception as err:
+            self.logger.exception(err)
+            if self.driver_started:
+                self.driver.quit()
+            raise StopIteration
 
 
 if __name__ == '__main__':
-    for comment in YoutubeShortsIterator('https://www.youtube.com/shorts/re6MHKI-t-g'):
+    # Another video to test: https://www.youtube.com/shorts/re6MHKI-t-g
+    for comment in YoutubeShortsIterator('https://www.youtube.com/shorts/7uctTsKeLdM'):
         print('hello world')
