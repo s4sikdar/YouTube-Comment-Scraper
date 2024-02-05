@@ -85,24 +85,37 @@ class YoutubeShortsIterator:
 
 
     def get_selector(self, css_selector, wait_time=10):
+        '''
+            get_selector(self, css_selector, wait_time) -> selenium.webdriver.remote.webelement.WebElement
+            get_selector(self, css_selector) -> selenium.webdriver.remote.webelement.WebElement
+            Get the element with the CSS selector passed into css_selector, with an optional argument to
+            specify the time to wait before an exception is thrown using the wait_time keyword
+            argument (default is 10 seconds). This function is not exception safe and will throw exceptions
+            if the element with the specified CSS selector is not found.
+        '''
         element_to_find = WebDriverWait(self.driver, timeout=wait_time, poll_frequency=0.1).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, css_selector))
         )
         return element_to_find
 
 
-    def element_exists(self, css_selector):
+    def element_exists(self, css_selector, wait_time=5):
         '''
             element_exists(self, css_selector) -> Bool
-            a method to check if a css selector exists, returns True if so, False otherwise
+            a method to check if a css selector exists, returns True if so, False otherwise. You can
+            also specify a wait time to wait till the exception is thrown using the wait_time keyword
+            argument (default is 5 seconds).
         '''
         try:
-            element_to_find = WebDriverWait(self.driver, timeout=5, poll_frequency=0.1).until(
+            element_to_find = WebDriverWait(self.driver, timeout=wait_time, poll_frequency=0.1).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, css_selector))
             )
-        except NoSuchElementException:
+        except (NoSuchElementException, selenium.common.exceptions.TimeoutException) as err:
+            self.logger.exception(f'element with css selector {css_selector} was not found (error below)')
+            self.logger.exception(err)
             return False
-        return True
+        else:
+            return True
 
 
     def mute_video(self):
@@ -286,15 +299,27 @@ class YoutubeShortsIterator:
         y_offset = comment_box_location['y']
         margin_top = element.value_of_css_property('margin-top').split('px')[0]
         margin_bottom = element.value_of_css_property('margin-bottom').split('px')[0]
+        padding_top = element.value_of_css_property('padding-top').split('px')[0]
+        padding_bottom = element.value_of_css_property('padding-bottom').split('px')[0]
+        border_top = element.value_of_css_property('border-top-width').split('px')[0]
+        border_bottom = element.value_of_css_property('border-bottom-width').split('px')[0]
         margin_top = int(margin_top)
         margin_bottom = int(margin_bottom)
+        padding_top = int(padding_top)
+        padding_bottom = int(padding_bottom)
+        border_top = int(border_top)
+        border_bottom = int(border_bottom)
+        scroll_amount = element.size['height'] + margin_top + margin_bottom + padding_top + padding_bottom + border_top + border_bottom
+        comment_text_element = element.find_element(By.CSS_SELECTOR, '#body #main #expander #content #content-text')
         # Log element location and dimension info
         self.logger.debug(f'element id: {element.id}')
-        self.logger.debug(f'element dimensions: {element.rect}')
+        self.logger.debug(f'element text: {comment_text_element.text}')
         self.logger.debug(f'element location: {element.location}')
         self.logger.debug(f'element size: {element.size}')
-        self.logger.debug(f'margin-top of element: {margin_top}, margin-bottom of element: {margin_bottom}\n')
-        amount_to_scroll = max((element.size['height'] + margin_top + margin_bottom), 0)
+        self.logger.debug(f'margin-top of element: {margin_top}, margin-bottom of element: {margin_bottom}')
+        self.logger.debug(f'padding-top of element: {padding_top}, padding-bottom of element: {padding_bottom}')
+        self.logger.debug(f'border-top of element: {border_top}, border-bottom of element: {border_bottom}\n')
+        amount_to_scroll = max(scroll_amount, 0)
         #self.pixels_left_from_parent = margin
         # offset the scrolling responsibilities to JavaScript
         try:
@@ -326,15 +351,18 @@ class YoutubeShortsIterator:
             raise StopIteration
         else:
             try:
-                self.current_comment = WebDriverWait(self.driver, timeout=20, poll_frequency=0.1).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_text_selector))
-                )
-                current_thread = WebDriverWait(self.driver, timeout=20, poll_frequency=0.1).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, self.current_thread_selector))
-                )
+                #self.current_comment = WebDriverWait(self.driver, timeout=20, poll_frequency=0.1).until(
+                #    EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_text_selector))
+                #)
+                self.current_comment = self.get_selector(self.comment_text_selector, wait_time=20)
+                current_thread = self.get_selector(self.current_thread_selector, wait_time=20)
+                #current_thread = WebDriverWait(self.driver, timeout=20, poll_frequency=0.1).until(
+                #    EC.presence_of_element_located((By.CSS_SELECTOR, self.current_thread_selector))
+                #)
                 # current_thread_selector
             except Exception as err:
-                self.logger.exception(err)
+                if self.element_exists(self.current_thread_selector):
+                    self.logger.exception(err)
                 #self.logger.debug(err.__traceback__)
                 #self.logger.debug(err.__cause__)
                 #self.logger.debug(err.__context__)
