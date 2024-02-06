@@ -16,6 +16,7 @@ from functools import wraps
 import logging
 import traceback
 
+
 class YoutubeShortsIterator:
     def __init__(self, youtube_url, limit=None, pattern=None, hours=0, minutes=0, seconds=0, enabled_logging=False, logfile='debug.log'):
         self.comment_thread_count = 0
@@ -143,6 +144,7 @@ class YoutubeShortsIterator:
            if aria_label_value.find('play') == -1:
                play_button.click()
 
+
     def set_time_limit(self, hours, minutes, seconds):
         '''
             set_time_limit(self, hours, seconds, minutes) -> None
@@ -162,6 +164,7 @@ class YoutubeShortsIterator:
             self.total_seconds = (hours * SECONDS_PER_HOUR) + (minutes * SECONDS_PER_MINUTE) + seconds
             self.total_time_limit = datetime.timedelta(seconds = self.total_seconds)
             self.start_time = datetime.datetime.now()
+
 
     def setup(func):
         '''
@@ -250,6 +253,7 @@ class YoutubeShortsIterator:
                                     'ytd-continuation-item-renderer #button ytd-button-renderer yt-button-shape button'
         self.current_thread_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({count})'
 
+
     def time_to_stop_scraping(self):
         '''
             time_to_stop_scraping(self) -> Bool
@@ -269,6 +273,7 @@ class YoutubeShortsIterator:
                 return True
         return False
 
+
     def log_debug_output(func):
         @wraps(func)
         def log_output(self, *args, **kwargs):
@@ -283,6 +288,7 @@ class YoutubeShortsIterator:
             #self.logger.debug(f'comment reply number: {(self.reply_count + 1)}, comment reply name: {name}')
             return func(self, *args, **kwargs)
         return log_output
+
 
     def scroll_out_of_view(self, element):
         '''
@@ -343,6 +349,7 @@ class YoutubeShortsIterator:
             self.logger.debug(traceback.print_stack())
         #self.amount_scrolled += 100
 
+
     def go_to_next(self):
         #breakpoint()
         if self.time_to_stop_scraping():
@@ -361,8 +368,12 @@ class YoutubeShortsIterator:
                 #)
                 # current_thread_selector
             except Exception as err:
-                if self.element_exists(self.current_thread_selector):
-                    self.logger.exception(err)
+                self.driver.quit()
+                self.driver_started = False
+                if not self.element_exists(self.current_thread_selector):
+                    self.driver.quit()
+                    self.driver_started = False
+                    raise StopIteration
                 #self.logger.debug(err.__traceback__)
                 #self.logger.debug(err.__cause__)
                 #self.logger.debug(err.__context__)
@@ -370,8 +381,7 @@ class YoutubeShortsIterator:
                 #self.logger.debug(traceback.print_tb(err.__traceback__))
                 #self.logger.debug(traceback.print_exception(err))
                 #self.logger.debug(traceback.print_stack())
-                self.driver.quit()
-                self.driver_started = False
+                self.logger.exception(err)
                 raise StopIteration
             self.comment_channel_name = self.get_selector(self.commenter_selector)
             #self.comment_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.commenter_selector)
@@ -419,6 +429,7 @@ class YoutubeShortsIterator:
             #    return resulting_comment
             return resulting_comment
 
+
     def __iter__(self):
         return self
 
@@ -428,10 +439,7 @@ class YoutubeShortsIterator:
         #self.driver.quit()
         try:
             return self.go_to_next()
-        except Exception as err:
-            self.logger.exception(err)
-            if self.driver_started:
-                self.driver.quit()
+        except:
             raise StopIteration
 
 
