@@ -440,6 +440,8 @@ class YoutubeShortsIterator:
         try:
             return self.go_to_next()
         except:
+            if self.driver_started:
+                self.driver.quit()
             raise StopIteration
 
 
