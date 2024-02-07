@@ -64,8 +64,8 @@ class YoutubeShortsIterator:
         self.reply_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) ' \
                                 '#replies #expander #expander-contents #contents > '\
                                 f'ytd-comment-renderer:nth-child({(self.comment_thread_count + 1)})'
-        self.reply_author_name_selector = f'{self.reply_selector} #body #author-text > yt-formatted-string'
-        self.reply_link_selector = f'{self.reply_selector} #header-author > yt-formatted-string > a'
+        self.reply_author_name_selector = f'{self.reply_selector} #body #author-text yt-formatted-string'
+        self.reply_link_selector = f'{self.reply_selector} #header-author yt-formatted-string a'
         self.reply_text_selector = f'{self.reply_selector} #comment-content #content #content-text'
         self.first_reply_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) '\
                                     '#replies #expander #expander-contents #contents > '\
@@ -112,11 +112,24 @@ class YoutubeShortsIterator:
                 EC.presence_of_element_located((By.CSS_SELECTOR, css_selector))
             )
         except (NoSuchElementException, selenium.common.exceptions.TimeoutException) as err:
-            self.logger.exception(f'element with css selector {css_selector} was not found (error below)')
-            self.logger.exception(err)
+            self.logger.debug(f'element with css selector {css_selector} was not found')
+            #self.logger.exception(err)
             return False
         else:
             return True
+
+
+    def get_attribute(self, element, attribute):
+        '''
+            get_attribute(self, element, attribute) -> Str
+            a method to return the attribute from the element, returns an
+            empty string if any exceptions are raised
+        '''
+        try:
+            result = element.get_attribute(attribute)
+            return result
+        except:
+            return ''
 
 
     def mute_video(self):
@@ -242,8 +255,8 @@ class YoutubeShortsIterator:
         self.reply_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({count}) ' \
                                 '#replies #expander #expander-contents #contents > '\
                                 f'ytd-comment-renderer:nth-child({child_count})'
-        self.reply_author_name_selector = f'{self.reply_selector} #body #author-text > yt-formatted-string'
-        self.reply_link_selector = f'{self.reply_selector} #header-author > yt-formatted-string > a'
+        self.reply_author_name_selector = f'{self.reply_selector} #body #author-text yt-formatted-string'
+        self.reply_link_selector = f'{self.reply_selector} #header-author yt-formatted-string a'
         self.reply_text_selector = f'{self.reply_selector} #comment-content #content #content-text'
         self.first_reply_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({count}) '\
                                     '#replies #expander #expander-contents #contents > '\
@@ -290,6 +303,14 @@ class YoutubeShortsIterator:
         return log_output
 
 
+    def return_scrolltop_value(self):
+        '''
+            return_scrolltop_value(self) -> Float
+            return the amount that the container element has scrolled from the top
+        '''
+        return self.driver.execute_script(f'return document.querySelector("{self.comment_box_selector}").scrollTop;')
+
+
     def scroll_out_of_view(self, element):
         '''
             scroll_out_of_view(self, element) -> None
@@ -316,10 +337,12 @@ class YoutubeShortsIterator:
         border_top = int(border_top)
         border_bottom = int(border_bottom)
         scroll_amount = element.size['height'] + margin_top + margin_bottom + padding_top + padding_bottom + border_top + border_bottom
-        comment_text_element = element.find_element(By.CSS_SELECTOR, '#body #main #expander #content #content-text')
+        #comment_text_element = element.find_element(By.CSS_SELECTOR, '#body #main #expander #content #content-text')
+        scrolltop_value = self.return_scrolltop_value()
         # Log element location and dimension info
         self.logger.debug(f'element id: {element.id}')
-        self.logger.debug(f'element text: {comment_text_element.text}')
+        self.logger.debug(f'amount container has scrolled down: {scrolltop_value}')
+        #self.logger.debug(f'element text: {comment_text_element.text}')
         self.logger.debug(f'element location: {element.location}')
         self.logger.debug(f'element size: {element.size}')
         self.logger.debug(f'margin-top of element: {margin_top}, margin-bottom of element: {margin_bottom}')
@@ -348,6 +371,87 @@ class YoutubeShortsIterator:
             self.logger.debug(traceback.print_exception(err))
             self.logger.debug(traceback.print_stack())
         #self.amount_scrolled += 100
+
+
+    def iterate_child(self):
+        '''
+            iterate_child(self) -> (anyOf Dict None)
+            Iterates through the replies of a youtube comment, aggregates the comment into a dictionary, and returns it.
+        '''
+        try:
+            self.first_reply_comment = WebDriverWait(self.driver, timeout=20, poll_frequency=0.1).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, self.first_reply_selector))
+            )
+            more_comments = self.element_exists(self.reply_selector) or self.element_exists(self.more_replies_selector)
+        except:
+            current_comment = self.current_comments_json
+            # log these errors if the logger level is set to debug
+            self.logger.debug(f'failed to find replies for comment number {(self.comment_thread_count + 1)} and css selector {self.first_reply_selector}')
+            self.logger.debug(f'comment info for comment number {(self.comment_thread_count + 1)}: {current_comment}')
+        else:
+            self.scroll_out_of_view(self.parent_comment)
+            while more_comments:
+                #breakpoint()
+                #reply_text_exists = self.element_exists(self.reply_text_selector)
+                #author_exists = self.element_exists(self.reply_author_name_selector)
+                #reply_link_exists = self.element_exists(self.reply_link_selector)
+                self.current_reply = self.driver.find_element(By.CSS_SELECTOR, self.reply_text_selector)
+                self.reply_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.reply_author_name_selector)
+                name = self.reply_channel_name.text.strip()[1:]
+                self.reply_link = self.driver.find_element(By.CSS_SELECTOR, self.reply_link_selector)
+                reply_text = self.current_reply.text.strip()
+                comment_link = ''
+                #y_pos = self.current_reply.location_once_scrolled_into_view['y'] - 100
+                #ActionChains(self.driver).scroll_by_amount(0, y_pos).perform()
+                full_reply = self.get_selector(self.reply_selector)
+                self.scroll_out_of_view(full_reply)
+                comment_link = self.get_attribute(self.reply_link, 'href')
+                reply_json = {
+                    'commenter': name,
+                    'comment content': reply_text,
+                    'link': comment_link,
+                }
+                if self.regex_pattern and (not self.thread_has_pattern):
+                    comment_match = re.search(self.regex_pattern, reply_text, re.IGNORECASE)
+                    if comment_match:
+                        self.thread_has_pattern = True
+                self.current_comments_json['children'].append(reply_json)
+                self.reply_count += 1
+                self.total_comments_parsed += 1
+                self.update_selectors((self.comment_thread_count + 1), (self.reply_count + 1))
+                if not self.element_exists(self.reply_text_selector, wait_time=0.1):
+                    if self.element_exists(self.more_replies_selector, wait_time=0.1):
+                        more_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.more_replies_selector)
+                        ActionChains(self.driver).move_to_element(more_replies_button).pause(0.5).click(more_replies_button).perform()
+                        try:
+                            #next_comment = WebDriverWait(self.driver, timeout=20, poll_frequency=0.1).until(
+                            #    EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_reply_selector))
+                            #)
+                            next_comment = self.get_selector(self.reply_text_selector, wait_time=20)
+                        except TimeoutException:
+                            break
+                more_comments = self.element_exists(self.reply_text_selector, wait_time=0.1) or\
+                                self.element_exists(self.more_replies_selector, wait_time=0.1)
+        finally:
+            scrolltop_value = self.return_scrolltop_value()
+            amount_to_scroll_up = scrolltop_value - self.parent_comment_pos
+            self.driver.execute_script(f'document.querySelector("{self.comment_box_selector}").scrollTop -= {amount_to_scroll_up}')
+            self.comment_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.less_replies_selector)
+            ActionChains(self.driver).move_to_element(self.comment_replies_button).pause(0.5).click(self.comment_replies_button).perform()
+            self.scroll_out_of_view(self.get_selector(self.current_thread_selector, wait_time=20))
+            self.reply_count = 0
+            self.comment_thread_count += 1
+            resulting_comment = self.current_comments_json
+            #ActionChains(self.driver).scroll_to_element(self.parent_comment).perform()
+            self.update_selectors((self.comment_thread_count + 1), (self.reply_count + 1))
+            comment_thread_has_regex = self.thread_has_pattern
+            self.reset_elements()
+            if self.regex_pattern:
+                if comment_thread_has_regex:
+                    return resulting_comment
+                else:
+                    return None
+            return resulting_comment
 
 
     def go_to_next(self):
@@ -395,38 +499,36 @@ class YoutubeShortsIterator:
                 'link': comment_link,
                 'children': []
             }
-            self.scroll_out_of_view(current_thread)
             #y_pos = self.current_comment.location_once_scrolled_into_view['y'] - 100
             #ActionChains(self.driver).scroll_by_amount(0, y_pos).perform()
-            self.total_comments_parsed += 1
-            self.comment_thread_count += 1
-            self.reset_elements()
-            self.update_selectors((self.comment_thread_count + 1), (self.reply_count + 1))
-            #if self.element_exists(self.replies_button_selector):
-            #    try:
-            #        self.parent_comment = self.current_comment
-            #        self.parent_comment_pos = self.amount_scrolled
-            #        self.current_comments_json = resulting_comment
-            #        self.comment_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.replies_button_selector)
-            #        ActionChains(self.driver).move_to_element(self.comment_replies_button).pause(0.5).click(self.comment_replies_button).perform()
-            #    except:
-            #        return resulting_comment
-            #    else:
-            #        if self.regex_pattern and (not self.thread_has_pattern):
-            #            comment_match = re.search(self.regex_pattern, resulting_comment['comment content'], re.IGNORECASE)
-            #            if comment_match:
-            #                self.thread_has_pattern = True
-            #        return self.iterate_child()
-            #else:
-            #    self.comment_thread_count += 1
-            #    self.update_selectors((self.comment_thread_count + 1), (self.reply_count + 1))
-            #    if self.regex_pattern:
-            #        comment_match = re.search(self.regex_pattern, resulting_comment['comment content'], re.IGNORECASE)
-            #        if comment_match:
-            #            return resulting_comment
-            #        else:
-            #            return None
-            #    return resulting_comment
+            if self.element_exists(self.expand_replies_selector, wait_time=0.1):
+                try:
+                    self.parent_comment = self.current_comment
+                    self.parent_comment_pos = self.return_scrolltop_value()
+                    self.current_comments_json = resulting_comment
+                    self.comment_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.expand_replies_selector)
+                    ActionChains(self.driver).move_to_element(self.comment_replies_button).pause(0.5).click(self.comment_replies_button).perform()
+                except:
+                    return resulting_comment
+                else:
+                    if self.regex_pattern and (not self.thread_has_pattern):
+                        comment_match = re.search(self.regex_pattern, resulting_comment['comment content'], re.IGNORECASE)
+                        if comment_match:
+                            self.thread_has_pattern = True
+                    return self.iterate_child()
+            else:
+                self.scroll_out_of_view(current_thread)
+                self.total_comments_parsed += 1
+                self.comment_thread_count += 1
+                self.reset_elements()
+                self.update_selectors((self.comment_thread_count + 1), (self.reply_count + 1))
+                if self.regex_pattern:
+                    comment_match = re.search(self.regex_pattern, resulting_comment['comment content'], re.IGNORECASE)
+                    if comment_match:
+                        return resulting_comment
+                    else:
+                        return None
+                return resulting_comment
             return resulting_comment
 
 
