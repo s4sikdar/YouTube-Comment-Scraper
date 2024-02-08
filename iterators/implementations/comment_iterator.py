@@ -22,27 +22,51 @@ SECONDS_PER_HOUR = 3600
 
 class CommentIterator:
     '''
-        CommentIterator(youtube_video_url, comment_limit=10, regex=None) -> Iterator
+        CommentIterator(video_url, limit=10, pattern=None, hours=0, minutes=0, seconds=0, enabled_logging=False, logfile='debug.log') -> Iterator
         A class that provides an interface to iterate over youtube comments.
         When iterating over an instance of the CommentIterator class, information for one comment
-        thread is gathered and returned to you in the form of a dictionary. The dictionary has the following
-        keys:
+        thread is gathered and returned to you in the form of a dictionary. The dictionary has the following keys:
             'commenter' - the channel name of the commenter
             'comment content' - the text content of the main comment, with all leading and trailing whitespace stripped
             'link' - the link to the YouTube comment itself. If the link cannot be obtained, the value is an empty string
             'children' - a list of all children comments. Each list item contains a dictionary with the keys 'commenter', 'comment content' and 'link'
+
         If the regex parameter is not None, then None can possibly be returned for a comment thread.
         Parameters:
-            youtube_video_url - the link to the exact video. The link must be valid and this interface is not responsible
-                                for handling exceptions regarding videos not available, or videos that are private
-            comment_limit - the maximum number of comments to iterate over. This refers to the maximum number of comment threads,
-                            and the number does not include comment replies. The default is 10 comment threads.
-            regex - an optional regular expression that will match text in a comment or its replies. If the comment thread has no replies,
+
+            video_url - the link to the exact video. The link must be valid and this interface is not responsible
+                        for handling exceptions regarding videos not available, or videos that are private
+
+            limit - the maximum number of comments to iterate over. This refers to the maximum number of comment threads,
+                    and the number does not include comment replies. The default is 10 comment threads.
+
+            pattern - an optional regular expression that will match text in a comment or its replies. If the comment thread has no replies,
                     the regular expression is tested against the main comment, and if it finds a match, then the comment information is returned
                     back. If the comment has replies, the regular expression is tested against the replies, and the information is returned if at
                     least one reply (or the original comment) matches the regular expression. If there are no matches, None is returned.
+
+            hours - the number of hours you want to spend scraping if you intend to specify a time limit. The hour count is multiplied by the number of
+                    seconds per hour (3600 seconds per hour) to get the total number of seconds specified by the hour-count. This is added to the number
+                    of seconds represented by the number of passed in minutes, and the number of seconds passed in to get the total time limit.
+                    The number of hours passed in by default (when it is not specified) is 0.
+
+            minutes - the number of minutes you want to spend scraping if you intend to specify a time limit. The hour count is multiplied by the number of
+                    seconds per hour (3600 seconds per hour) to get the total number of seconds specified by the hour-count. This is added to the number
+                    of seconds represented by the number of minutes specified in the minutes parameter (i.e. add 60 * number of minutes specified),
+                    and the number of seconds passed in to get the total time limit. The number of minutes passed in by default (when it is not specified)
+                    is 0.
+
+            seconds - the number of seconds you want to spend scraping if you intend to specify a time limit. The hour count is multiplied by the number of
+                    seconds per hour (3600 seconds per hour) to get the total number of seconds specified by the hour-count. This is added to the number
+                    of seconds represented by the number of minutes specified in the minutes parameter (i.e. add 60 * number of minutes specified),
+                    and the number of seconds passed in to get the total time limit. The number of minutes passed in by default (when it is not specified)
+                    is 0.
+
+            enabled_logging - when set to true, the logger level is set to the DEBUG level. All logger.debug calls are made.
+
+            logfile - the name of the logfile that you want to use to log messages to. By default, the log file name is 'debug.log'
     '''
-    def __init__(self, youtube_url, limit=None, pattern=None, hours=0, minutes=0, seconds=0, enabled_logging=True, logfile='debug.log'):
+    def __init__(self, youtube_url, limit=None, pattern=None, hours=0, minutes=0, seconds=0, enabled_logging=False, logfile='debug.log'):
         self.comment_thread_count = 0
         self.reply_count = 0
         self.hours = 0
@@ -88,13 +112,7 @@ class CommentIterator:
     def log_debug_output(func):
         @wraps(func)
         def log_output(self, *args, **kwargs):
-            #comment_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.commenter_selector)
-            #commenter_name = comment_channel_name.text.strip()[1:]
-            #reply_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.comment_reply_channel)
-            #name = reply_channel_name.text.strip()[1:]
-            #commenter_name = self.current_comment_json['commenter']
             self.logger.debug(f'comment number: {(self.comment_thread_count + 1)}, comment info: {self.current_comment_json}')
-            #self.logger.debug(f'comment reply number: {(self.reply_count + 1)}, comment reply name: {name}')
             return func(self, *args, **kwargs)
         return log_output
 
@@ -134,11 +152,6 @@ class CommentIterator:
     def regex_pattern():
         return r'^https://www\.youtube\.com/(?!shorts/)[^\.\s]+$'
 
-    #def abort_exception(self, func, *args, **kwargs):
-    #    try:
-    #        func(*args, **kwargs)
-    #    except:
-    #        raise StopIteration
 
     def set_time_limit(self, hours, minutes, seconds):
         '''

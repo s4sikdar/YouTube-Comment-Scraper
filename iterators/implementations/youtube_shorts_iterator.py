@@ -18,14 +18,59 @@ import traceback
 
 
 class YoutubeShortsIterator:
-    def __init__(self, youtube_url, limit=None, pattern=None, hours=0, minutes=0, seconds=0, enabled_logging=False, logfile='debug.log'):
+    '''
+        YoutubeShortsIterator(video_url, limit=10, pattern=None, hours=0, minutes=0, seconds=0, enabled_logging=False, logfile='debug.log') -> Iterator
+        A class that provides an interface to iterate over youtube comments.
+        When iterating over an instance of the CommentIterator class, information for one comment
+        thread is gathered and returned to you in the form of a dictionary. The dictionary has the following keys:
+            'commenter' - the channel name of the commenter
+            'comment content' - the text content of the main comment, with all leading and trailing whitespace stripped
+            'link' - the link to the YouTube comment itself. If the link cannot be obtained, the value is an empty string
+            'children' - a list of all children comments. Each list item contains a dictionary with the keys 'commenter', 'comment content' and 'link'
+
+        If the regex parameter is not None, then None can possibly be returned for a comment thread.
+        Parameters:
+
+            video_url - the link to the exact video. The link must be valid and this interface is not responsible
+                        for handling exceptions regarding videos not available, or videos that are private
+
+            limit - the maximum number of comments to iterate over. This refers to the maximum number of comment threads,
+                    and the number does not include comment replies. The default is 10 comment threads.
+
+            pattern - an optional regular expression that will match text in a comment or its replies. If the comment thread has no replies,
+                    the regular expression is tested against the main comment, and if it finds a match, then the comment information is returned
+                    back. If the comment has replies, the regular expression is tested against the replies, and the information is returned if at
+                    least one reply (or the original comment) matches the regular expression. If there are no matches, None is returned.
+
+            hours - the number of hours you want to spend scraping if you intend to specify a time limit. The hour count is multiplied by the number of
+                    seconds per hour (3600 seconds per hour) to get the total number of seconds specified by the hour-count. This is added to the number
+                    of seconds represented by the number of passed in minutes, and the number of seconds passed in to get the total time limit.
+                    The number of hours passed in by default (when it is not specified) is 0.
+
+            minutes - the number of minutes you want to spend scraping if you intend to specify a time limit. The hour count is multiplied by the number of
+                    seconds per hour (3600 seconds per hour) to get the total number of seconds specified by the hour-count. This is added to the number
+                    of seconds represented by the number of minutes specified in the minutes parameter (i.e. add 60 * number of minutes specified),
+                    and the number of seconds passed in to get the total time limit. The number of minutes passed in by default (when it is not specified)
+                    is 0.
+
+            seconds - the number of seconds you want to spend scraping if you intend to specify a time limit. The hour count is multiplied by the number of
+                    seconds per hour (3600 seconds per hour) to get the total number of seconds specified by the hour-count. This is added to the number
+                    of seconds represented by the number of minutes specified in the minutes parameter (i.e. add 60 * number of minutes specified),
+                    and the number of seconds passed in to get the total time limit. The number of minutes passed in by default (when it is not specified)
+                    is 0.
+
+            enabled_logging - when set to true, the logger level is set to the DEBUG level. All logger.debug calls are made.
+
+            logfile - the name of the logfile that you want to use to log messages to. By default, the log file name is 'debug.log'
+    '''
+    def __init__(self, video_url, limit=None, pattern=None, hours=0, minutes=0, seconds=0, enabled_logging=False, logfile='debug.log'):
         self.comment_thread_count = 0
         self.reply_count = 0
         self.hours = 0
         self.minutes = 0
         self.seconds = 0
         self.total_comments_parsed = 0
-        self.youtube_url = youtube_url
+        self.video_url = video_url
         self.limit = limit
         self.driver = webdriver.Chrome()
         self.title_selector = '#title > h1 > yt-formatted-string'
@@ -48,30 +93,20 @@ class YoutubeShortsIterator:
         self.mute_button_selector = 'ytd-shorts-player-controls yt-icon-button:nth-child(2) button'
         self.expand_comments_button = '#comments-button ytd-button-renderer yt-button-shape label button'
         self.comment_box_selector = '#shorts-container #watch-while-engagement-panel #contents #contents'
-        #self.comment_container_selector = '#shorts-container #watch-while-engagement-panel #contents'
         # CSS selectors for the section containing comments
         self.current_thread_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)})'
-        self.commenter_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) '\
-                                '#body #main #header-author > h3 #author-text'
-        self.comment_link_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) '\
-                                    '#body #main #header-author yt-formatted-string a'
-        self.comment_text_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) '\
-                                    '#body #main #expander #content #content-text'
-        self.expand_replies_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) ' \
-                                    '#replies #expander #more-replies > yt-button-shape > button'
-        self.less_replies_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) ' \
-                                    '#replies #expander #less-replies > yt-button-shape > button'
-        self.reply_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) ' \
-                                '#replies #expander #expander-contents #contents > '\
+        self.commenter_selector = f'{self.current_thread_selector} #body #main #header-author > h3 #author-text'
+        self.comment_link_selector = f'{self.current_thread_selector} #body #main #header-author yt-formatted-string a'
+        self.comment_text_selector = f'{self.current_thread_selector} #body #main #expander #content #content-text'
+        self.expand_replies_selector = f'{self.current_thread_selector} #replies #expander #more-replies > yt-button-shape > button'
+        self.less_replies_selector = f'{self.current_thread_selector} #replies #expander #less-replies > yt-button-shape > button'
+        self.reply_selector = f'{self.current_thread_selector} #replies #expander #expander-contents #contents > ' \
                                 f'ytd-comment-renderer:nth-child({(self.comment_thread_count + 1)})'
-        self.reply_author_name_selector = f'{self.reply_selector} #body #author-text yt-formatted-string'
+        self.reply_author_name_selector = f'{self.reply_selector} #body #header-author #author-text yt-formatted-string'
         self.reply_link_selector = f'{self.reply_selector} #header-author yt-formatted-string a'
         self.reply_text_selector = f'{self.reply_selector} #comment-content #content #content-text'
-        self.first_reply_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) '\
-                                    '#replies #expander #expander-contents #contents > '\
-                                    'ytd-comment-renderer:nth-child(1) #content-text'
-        self.more_replies_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) '\
-                                    '#replies #expander #expander-contents #contents > '\
+        self.first_reply_selector = f'{self.current_thread_selector} #replies #expander #expander-contents #contents > ytd-comment-renderer:nth-child(1) #content-text'
+        self.more_replies_selector = f'{self.current_thread_selector} #replies #expander #expander-contents #contents > '\
                                     'ytd-continuation-item-renderer #button ytd-button-renderer yt-button-shape button'
         self.current_comment_json = {}
         self.started_yet = False
@@ -113,7 +148,6 @@ class YoutubeShortsIterator:
             )
         except (NoSuchElementException, selenium.common.exceptions.TimeoutException) as err:
             self.logger.debug(f'element with css selector {css_selector} was not found')
-            #self.logger.exception(err)
             return False
         else:
             return True
@@ -147,7 +181,7 @@ class YoutubeShortsIterator:
 
     def pause_video(self):
         '''
-            play_video(self) -> None
+            pause_video(self) -> None
             find the play button on the youtube short video, and ensure the video is paused
         '''
         play_button = self.get_selector(self.play_button_selector, wait_time=60)
@@ -195,14 +229,13 @@ class YoutubeShortsIterator:
                     self.logger.setLevel(logging.DEBUG)
                 self.started_yet = True
                 self.driver_started = True
-                self.driver.get(self.youtube_url)
+                self.driver.get(self.video_url)
                 self.driver.maximize_window()
                 self.pause_video()
                 self.mute_video()
                 expand_comments_button = self.get_selector(self.expand_comments_button)
                 expand_comments_button.click()
                 self.set_time_limit(self.hours, self.minutes, self.seconds)
-                #time.sleep(10)
             return func(self, *args, **kwargs)
         return setup_beforehand
 
@@ -232,39 +265,21 @@ class YoutubeShortsIterator:
             for the current comment thread count and the current reply count respectively (i.e. self.comment_thread_count
             would be used for count, and self.reply_count would be used for child_count).
         '''
-        #self.comment_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #content-text'
-        #self.commenter_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #author-text'
-        #self.comment_link_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #header-author > yt-formatted-string > a'
-        #self.replies_button_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #more-replies > yt-button-shape > button > yt-touch-feedback-shape > div > div.yt-spec-touch-feedback-shape__fill'
-        #self.less_replies_button_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #less-replies > yt-button-shape > button > yt-touch-feedback-shape > div > div.yt-spec-touch-feedback-shape__fill'
-        #self.comment_reply_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child({child_count}) #content-text'
-        #self.comment_reply_channel = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child({child_count}) #author-text > yt-formatted-string'
-        #self.comment_reply_link = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child({child_count}) #header-author > yt-formatted-string > a'
-        #self.more_replies_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #replies #button > ytd-button-renderer > yt-button-shape > button > yt-touch-feedback-shape > div > div.yt-spec-touch-feedback-shape__fill'
-        #self.first_reply_selector = f'#contents > ytd-comment-thread-renderer:nth-child({count}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child(1) #content-text'
-        self.commenter_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({count}) '\
-                                '#body #main #header-author > h3 #author-text'
-        self.comment_link_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({count}) '\
-                                    '#body #main #header-author yt-formatted-string a'
-        self.comment_text_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({count}) '\
-                                    '#body #main #expander #content #content-text'
-        self.expand_replies_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({count}) ' \
-                                    '#replies #expander #more-replies > yt-button-shape > button'
-        self.less_replies_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({count}) ' \
-                                    '#replies #expander #less-replies > yt-button-shape > button'
-        self.reply_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({count}) ' \
-                                '#replies #expander #expander-contents #contents > '\
+        self.current_thread_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({count})'
+        self.commenter_selector = f'{self.current_thread_selector} #body #main #header-author > h3 #author-text'
+        self.comment_link_selector = f'{self.current_thread_selector} #body #main #header-author yt-formatted-string a'
+        self.comment_text_selector = f'{self.current_thread_selector} #body #main #expander #content #content-text'
+        self.expand_replies_selector = f'{self.current_thread_selector} #replies #expander #more-replies > yt-button-shape > button'
+        self.less_replies_selector = f'{self.current_thread_selector} #replies #expander #less-replies > yt-button-shape > button'
+        self.reply_selector = f'{self.current_thread_selector} #replies #expander #expander-contents #contents > '\
                                 f'ytd-comment-renderer:nth-child({child_count})'
-        self.reply_author_name_selector = f'{self.reply_selector} #body #author-text yt-formatted-string'
+        self.reply_author_name_selector = f'{self.reply_selector} #body #header-author #author-text yt-formatted-string'
         self.reply_link_selector = f'{self.reply_selector} #header-author yt-formatted-string a'
         self.reply_text_selector = f'{self.reply_selector} #comment-content #content #content-text'
-        self.first_reply_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({count}) '\
-                                    '#replies #expander #expander-contents #contents > '\
+        self.first_reply_selector = f'{self.current_thread_selector} #replies #expander #expander-contents #contents > '\
                                     'ytd-comment-renderer:nth-child(1) #content-text'
-        self.more_replies_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({count}) '\
-                                    '#replies #expander #expander-contents #contents > '\
+        self.more_replies_selector = f'{self.current_thread_selector} #replies #expander #expander-contents #contents > '\
                                     'ytd-continuation-item-renderer #button ytd-button-renderer yt-button-shape button'
-        self.current_thread_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({count})'
 
 
     def time_to_stop_scraping(self):
@@ -292,13 +307,7 @@ class YoutubeShortsIterator:
         def log_output(self, *args, **kwargs):
             if self.enabled_logging:
                 self.logger.setLevel(logging.DEBUG)
-            #comment_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.commenter_selector)
-            #commenter_name = comment_channel_name.text.strip()[1:]
-            #reply_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.comment_reply_channel)
-            #name = reply_channel_name.text.strip()[1:]
-            #commenter_name = self.current_comment_json['commenter']
             self.logger.debug(f'comment number: {(self.comment_thread_count + 1)}, comment info: {self.current_comment_json}')
-            #self.logger.debug(f'comment reply number: {(self.reply_count + 1)}, comment reply name: {name}')
             return func(self, *args, **kwargs)
         return log_output
 
@@ -337,40 +346,21 @@ class YoutubeShortsIterator:
         border_top = int(border_top)
         border_bottom = int(border_bottom)
         scroll_amount = element.size['height'] + margin_top + margin_bottom + padding_top + padding_bottom + border_top + border_bottom
-        #comment_text_element = element.find_element(By.CSS_SELECTOR, '#body #main #expander #content #content-text')
         scrolltop_value = self.return_scrolltop_value()
         # Log element location and dimension info
         self.logger.debug(f'element id: {element.id}')
         self.logger.debug(f'amount container has scrolled down: {scrolltop_value}')
-        #self.logger.debug(f'element text: {comment_text_element.text}')
         self.logger.debug(f'element location: {element.location}')
         self.logger.debug(f'element size: {element.size}')
         self.logger.debug(f'margin-top of element: {margin_top}, margin-bottom of element: {margin_bottom}')
         self.logger.debug(f'padding-top of element: {padding_top}, padding-bottom of element: {padding_bottom}')
         self.logger.debug(f'border-top of element: {border_top}, border-bottom of element: {border_bottom}\n')
         amount_to_scroll = max(scroll_amount, 0)
-        #self.pixels_left_from_parent = margin
         # offset the scrolling responsibilities to JavaScript
         try:
             self.driver.execute_script(f'document.querySelector("{self.comment_box_selector}").scrollTop += {amount_to_scroll}')
-            #time.sleep(1)
-            #breakpoint()
-            #ActionChains(self.driver).scroll_to_element(element).perform()
         except Exception as err:
-            #breakpoint()
-            print(err)
-            self.logger.debug(err)
-            self.logger.debug(err.__traceback__)
-            self.logger.debug(err.__cause__)
-            self.logger.debug(err.__context__)
-            #self.logger.debug(traceback.print_tb())
-            #self.logger.debug(traceback.print_exception())
-            #self.logger.debug(traceback.print_stack())
-            self.logger.debug('traceback')
-            self.logger.debug(traceback.print_tb(err.__traceback__))
-            self.logger.debug(traceback.print_exception(err))
-            self.logger.debug(traceback.print_stack())
-        #self.amount_scrolled += 100
+            self.logger.exception(err)
 
 
     def iterate_child(self):
@@ -379,9 +369,7 @@ class YoutubeShortsIterator:
             Iterates through the replies of a youtube comment, aggregates the comment into a dictionary, and returns it.
         '''
         try:
-            self.first_reply_comment = WebDriverWait(self.driver, timeout=20, poll_frequency=0.1).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, self.first_reply_selector))
-            )
+            self.first_reply_comment = self.get_selector(self.first_reply_selector, wait_time=20)
             more_comments = self.element_exists(self.reply_selector) or self.element_exists(self.more_replies_selector)
         except:
             current_comment = self.current_comments_json
@@ -391,18 +379,12 @@ class YoutubeShortsIterator:
         else:
             self.scroll_out_of_view(self.parent_comment)
             while more_comments:
-                #breakpoint()
-                #reply_text_exists = self.element_exists(self.reply_text_selector)
-                #author_exists = self.element_exists(self.reply_author_name_selector)
-                #reply_link_exists = self.element_exists(self.reply_link_selector)
                 self.current_reply = self.driver.find_element(By.CSS_SELECTOR, self.reply_text_selector)
                 self.reply_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.reply_author_name_selector)
                 name = self.reply_channel_name.text.strip()[1:]
                 self.reply_link = self.driver.find_element(By.CSS_SELECTOR, self.reply_link_selector)
                 reply_text = self.current_reply.text.strip()
                 comment_link = ''
-                #y_pos = self.current_reply.location_once_scrolled_into_view['y'] - 100
-                #ActionChains(self.driver).scroll_by_amount(0, y_pos).perform()
                 full_reply = self.get_selector(self.reply_selector)
                 self.scroll_out_of_view(full_reply)
                 comment_link = self.get_attribute(self.reply_link, 'href')
@@ -424,9 +406,6 @@ class YoutubeShortsIterator:
                         more_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.more_replies_selector)
                         ActionChains(self.driver).move_to_element(more_replies_button).pause(0.5).click(more_replies_button).perform()
                         try:
-                            #next_comment = WebDriverWait(self.driver, timeout=20, poll_frequency=0.1).until(
-                            #    EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_reply_selector))
-                            #)
                             next_comment = self.get_selector(self.reply_text_selector, wait_time=20)
                         except TimeoutException:
                             break
@@ -442,7 +421,6 @@ class YoutubeShortsIterator:
             self.reply_count = 0
             self.comment_thread_count += 1
             resulting_comment = self.current_comments_json
-            #ActionChains(self.driver).scroll_to_element(self.parent_comment).perform()
             self.update_selectors((self.comment_thread_count + 1), (self.reply_count + 1))
             comment_thread_has_regex = self.thread_has_pattern
             self.reset_elements()
@@ -455,22 +433,14 @@ class YoutubeShortsIterator:
 
 
     def go_to_next(self):
-        #breakpoint()
         if self.time_to_stop_scraping():
             self.driver.quit()
             self.driver_started = False
             raise StopIteration
         else:
             try:
-                #self.current_comment = WebDriverWait(self.driver, timeout=20, poll_frequency=0.1).until(
-                #    EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_text_selector))
-                #)
                 self.current_comment = self.get_selector(self.comment_text_selector, wait_time=20)
                 current_thread = self.get_selector(self.current_thread_selector, wait_time=20)
-                #current_thread = WebDriverWait(self.driver, timeout=20, poll_frequency=0.1).until(
-                #    EC.presence_of_element_located((By.CSS_SELECTOR, self.current_thread_selector))
-                #)
-                # current_thread_selector
             except Exception as err:
                 self.driver.quit()
                 self.driver_started = False
@@ -478,17 +448,9 @@ class YoutubeShortsIterator:
                     self.driver.quit()
                     self.driver_started = False
                     raise StopIteration
-                #self.logger.debug(err.__traceback__)
-                #self.logger.debug(err.__cause__)
-                #self.logger.debug(err.__context__)
-                #self.logger.debug('traceback')
-                #self.logger.debug(traceback.print_tb(err.__traceback__))
-                #self.logger.debug(traceback.print_exception(err))
-                #self.logger.debug(traceback.print_stack())
                 self.logger.exception(err)
                 raise StopIteration
             self.comment_channel_name = self.get_selector(self.commenter_selector)
-            #self.comment_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.commenter_selector)
             name = self.comment_channel_name.text.strip()[1:]
             self.comment_link = self.get_selector(self.comment_link_selector)
             comment_link = self.comment_link.get_attribute('href')
@@ -499,8 +461,6 @@ class YoutubeShortsIterator:
                 'link': comment_link,
                 'children': []
             }
-            #y_pos = self.current_comment.location_once_scrolled_into_view['y'] - 100
-            #ActionChains(self.driver).scroll_by_amount(0, y_pos).perform()
             if self.element_exists(self.expand_replies_selector, wait_time=0.1):
                 try:
                     self.parent_comment = self.current_comment
@@ -538,7 +498,6 @@ class YoutubeShortsIterator:
 
     @setup
     def __next__(self):
-        #self.driver.quit()
         try:
             return self.go_to_next()
         except:
