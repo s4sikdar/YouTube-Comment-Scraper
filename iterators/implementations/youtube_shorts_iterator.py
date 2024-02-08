@@ -99,6 +99,7 @@ class YoutubeShortsIterator:
         self.comment_box_selector = '#shorts-container #watch-while-engagement-panel #contents #contents'
         # CSS selectors for the section containing comments
         self.current_thread_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)})'
+        self.video_author_commenter_selector = f'{self.current_thread_selector} ytd-author-comment-badge-renderer #container #text-container #text'
         self.commenter_selector = f'{self.current_thread_selector} #body #main #header-author > h3 #author-text'
         self.comment_link_selector = f'{self.current_thread_selector} #body #main #header-author yt-formatted-string a'
         self.comment_text_selector = f'{self.current_thread_selector} #body #main #expander #content #content-text'
@@ -107,6 +108,7 @@ class YoutubeShortsIterator:
         self.reply_selector = f'{self.current_thread_selector} #replies #expander #expander-contents #contents > ' \
                                 f'ytd-comment-renderer:nth-child({(self.comment_thread_count + 1)})'
         self.reply_author_name_selector = f'{self.reply_selector} #body #header-author #author-text yt-formatted-string'
+        self.reply_video_author_commenter_selector = f'{self.reply_selector} ytd-author-comment-badge-renderer #container #text-container #text'
         self.reply_link_selector = f'{self.reply_selector} #header-author yt-formatted-string a'
         self.reply_text_selector = f'{self.reply_selector} #comment-content #content #content-text'
         self.first_reply_selector = f'{self.current_thread_selector} #replies #expander #expander-contents #contents > '\
@@ -285,6 +287,8 @@ class YoutubeShortsIterator:
                                     'ytd-comment-renderer:nth-child(1) #content-text'
         self.more_replies_selector = f'{self.current_thread_selector} #replies #expander #expander-contents #contents > '\
                                     'ytd-continuation-item-renderer #button ytd-button-renderer yt-button-shape button'
+        self.video_author_commenter_selector = f'{self.current_thread_selector} ytd-author-comment-badge-renderer #container #text-container #text'
+        self.reply_video_author_commenter_selector = f'{self.reply_selector} ytd-author-comment-badge-renderer #container #text-container #text'
 
 
     def time_to_stop_scraping(self):
@@ -392,6 +396,9 @@ class YoutubeShortsIterator:
                 self.current_reply = self.driver.find_element(By.CSS_SELECTOR, self.reply_text_selector)
                 self.reply_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.reply_author_name_selector)
                 name = self.reply_channel_name.text.strip()[1:]
+                if not name:
+                    self.reply_channel_name = self.get_selector(self.reply_video_author_commenter_selector)
+                    name = self.reply_channel_name.text.strip()[1:]
                 self.reply_link = self.driver.find_element(By.CSS_SELECTOR, self.reply_link_selector)
                 reply_text = self.current_reply.text.strip()
                 comment_link = ''
@@ -473,6 +480,9 @@ class YoutubeShortsIterator:
                 raise StopIteration
             self.comment_channel_name = self.get_selector(self.commenter_selector)
             name = self.comment_channel_name.text.strip()[1:]
+            if not name:
+                self.comment_channel_name = self.get_selector(self.video_author_commenter_selector)
+                name = self.comment_channel_name.text.strip()[1:]
             self.comment_link = self.get_selector(self.comment_link_selector)
             comment_link = self.comment_link.get_attribute('href')
             comment_content = self.current_comment.text.strip()

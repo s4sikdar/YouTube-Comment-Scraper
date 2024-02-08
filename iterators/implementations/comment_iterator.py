@@ -102,6 +102,8 @@ class CommentIterator:
         self.comment_reply_link = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child({(self.reply_count + 1)}) #header-author > yt-formatted-string > a'
         self.more_replies_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #replies #button > ytd-button-renderer > yt-button-shape > button > yt-touch-feedback-shape > div > div.yt-spec-touch-feedback-shape__fill'
         self.first_reply_selector = f'#contents > ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #replies > ytd-comment-replies-renderer #contents > ytd-comment-renderer:nth-child(1) #content-text'
+        #self.video_author_commenter_selector = f'{self.current_thread_selector} ytd-author-comment-badge-renderer #container #text-container #text'
+        #self.reply_video_author_commenter_selector = f'{self.reply_selector} ytd-author-comment-badge-renderer #container #text-container #text'
         self.current_comment_json = {}
         self.started_yet = False
         self.log_file = logfile
