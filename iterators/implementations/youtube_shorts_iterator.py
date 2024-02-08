@@ -17,6 +17,10 @@ import logging
 import traceback
 
 
+SECONDS_PER_MINUTE = 60
+SECONDS_PER_HOUR = 3600
+
+
 class YoutubeShortsIterator:
     '''
         YoutubeShortsIterator(video_url, limit=10, pattern=None, hours=0, minutes=0, seconds=0, enabled_logging=False, logfile='debug.log') -> Iterator
@@ -105,7 +109,8 @@ class YoutubeShortsIterator:
         self.reply_author_name_selector = f'{self.reply_selector} #body #header-author #author-text yt-formatted-string'
         self.reply_link_selector = f'{self.reply_selector} #header-author yt-formatted-string a'
         self.reply_text_selector = f'{self.reply_selector} #comment-content #content #content-text'
-        self.first_reply_selector = f'{self.current_thread_selector} #replies #expander #expander-contents #contents > ytd-comment-renderer:nth-child(1) #content-text'
+        self.first_reply_selector = f'{self.current_thread_selector} #replies #expander #expander-contents #contents > '\
+                                    'ytd-comment-renderer:nth-child(1) #content-text'
         self.more_replies_selector = f'{self.current_thread_selector} #replies #expander #expander-contents #contents > '\
                                     'ytd-continuation-item-renderer #button ytd-button-renderer yt-button-shape button'
         self.current_comment_json = {}
@@ -216,7 +221,7 @@ class YoutubeShortsIterator:
     def setup(func):
         '''
             startup(function) -> function
-            a decorator to do setup steps before iteration
+            a decorator to do all required setup steps before iteration
         '''
         @wraps(func)
         def setup_beforehand(self, *args, **kwargs):
@@ -303,6 +308,11 @@ class YoutubeShortsIterator:
 
 
     def log_debug_output(func):
+        '''
+            log_debug_output(func) -> function
+            a decorator function that logs the values (self.comment_thread_count + 1) and self.current_comment_json before
+            running a modified function that is originally based on the function passed in as a parameter
+        '''
         @wraps(func)
         def log_output(self, *args, **kwargs):
             if self.enabled_logging:
@@ -432,7 +442,18 @@ class YoutubeShortsIterator:
             return resulting_comment
 
 
-    def go_to_next(self):
+    def iterate_comment_threads(self):
+        '''
+            iterate_comment_threads(self) -> Dict
+            iterate over comment threads (both the comments and their replies), and return the JSON at the
+            end. This goes on till one of the following conditions below is reached:
+            1) we no longer find the next element
+            2) we reach a point where we have to stop scraping (i.e. we exceed the comment limit or the time limit),
+               or another expected error occurs.
+            3) some other unexpected error occurs. If 3) happens we log the exception using the self.logger.exception method
+            In all 3 cases above, we raise a StopIteration exception, indicating to the method that uses this method (__next__)
+            that there is nothing left to iterate.
+        '''
         if self.time_to_stop_scraping():
             self.driver.quit()
             self.driver_started = False
@@ -499,7 +520,7 @@ class YoutubeShortsIterator:
     @setup
     def __next__(self):
         try:
-            return self.go_to_next()
+            return self.iterate_comment_threads()
         except:
             if self.driver_started:
                 self.driver.quit()

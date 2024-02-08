@@ -110,6 +110,11 @@ class CommentIterator:
 
 
     def log_debug_output(func):
+        '''
+            log_debug_output(func) -> function
+            a decorator function that logs the values (self.comment_thread_count + 1) and self.current_comment_json before
+            running a modified function that is originally based on the function passed in as a parameter
+        '''
         @wraps(func)
         def log_output(self, *args, **kwargs):
             self.logger.debug(f'comment number: {(self.comment_thread_count + 1)}, comment info: {self.current_comment_json}')
@@ -328,6 +333,16 @@ class CommentIterator:
         return self
 
     def go_to_next(self):
+        '''
+            iterate_comment_threads(self) -> Dict
+            iterate over comment threads (both the comments and their replies), and return the JSON at the
+            end. This goes on till one of the following conditions below is reached:
+            1) we no longer find the next element
+            2) we reach a point where we have to stop scraping (i.e. we exceed the comment limit or the time limit),
+               or another expected error occurs.
+            For both cases above, we raise a StopIteration exception, indicating to the method that uses this method (__next__)
+            that there is nothing left to iterate over.
+        '''
         if self.time_to_stop_scraping():
             self.driver.quit()
             raise StopIteration
