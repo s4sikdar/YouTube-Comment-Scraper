@@ -13,3 +13,6 @@ class IteratorAsList(list):
 
     def __len__(self):
         return 1
+
+    def __next__(self):
+        yield self.it.__next__()
