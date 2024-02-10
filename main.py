@@ -79,7 +79,7 @@ def main():
     parser.add_argument(
         '-B', '--buffer',
         help=(
-            'Read in the dictionaries returned in each iteration and immediately write it to the json file.'
+            'Read in the dictionaries returned in each iteration and immediately write it to the json file. '
             'This is highly recommended for videos with large numbers of comments (1000+ comments).'
         ),
         action='store_true'
