@@ -3,6 +3,7 @@ import json
 import sys
 import re
 from iterators.factory import IteratorFactory
+from iterators.iterlist import IteratorAsList
 
 
 def valid_arguments(argument_parser):
@@ -75,6 +76,14 @@ def main():
     parser.add_argument(
         '-F','--logfile', type=str, default='debug.log', help='the logfile that you want to send logging output to'
     )
+    parser.add_argument(
+        '-B', '--buffer',
+        help=(
+            'Read in the dictionaries returned in each iteration and immediately write it to the json file.'
+            'This is highly recommended for videos with large numbers of comments (1000+ comments).'
+        ),
+        action='store_true'
+    )
     arguments = parser.parse_args()
     if not valid_arguments(arguments):
         exit(1)
@@ -84,10 +93,14 @@ def main():
     kwargs = vars(arguments)
     url = kwargs.pop('url')
     output = kwargs.pop('output')
+    buffer = kwargs.pop('buffer')
     with open(output, 'w') as output_file:
-        for item in IteratorFactory(url, **kwargs):
-            comments['comments'].append(item)
-        output_file.write(json.dumps(comments))
+        if not buffer:
+            for item in IteratorFactory(url, **kwargs):
+                comments['comments'].append(item)
+            output_file.write(json.dumps(comments))
+        else:
+            json.dump(IteratorAsList(IteratorFactory(url, **kwargs)), output_file)
 
 
 if __name__ == '__main__':
