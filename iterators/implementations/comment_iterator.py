@@ -347,6 +347,7 @@ class CommentIterator:
         '''
         if self.time_to_stop_scraping():
             self.driver.quit()
+            self.driver_started = False
             raise StopIteration
         else:
             try:
