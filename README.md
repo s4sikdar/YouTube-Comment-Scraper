@@ -7,32 +7,42 @@ The video must be public and have comments enabled. The module only returns back
 3. The link to the comment, with key "link"
 4. A list of children comments, with dictionaries that have the above keys except for their own list of children
 ### Options taken by the script
-Script usage: `python main.py [-h] [-l LIMIT] --url URL [--pattern PATTERN] [-o OUTPUT] [--hours HOURS] [--minutes MINUTES] [--seconds SECONDS]`
+Script usage: `main.py [-h] [-l LIMIT] --url URL [--pattern PATTERN] [-o OUTPUT] [--hours HOURS] [--minutes MINUTES] [--seconds SECONDS] [-L] [-F LOGFILE] [-B]`
 
 Arguments taken:
 ```
-  -h, --help            	show this help message and exit
+  -h, --help				show the help message and exit
 
-  -l LIMIT, --limit LIMIT	the maximum number of comments we will scrape
+  -l LIMIT, --limit LIMIT		the maximum number of comments we will scrape
 
-  --url URL             	the YouTube video url for the video you want to scrape
-                        	(should be available)
+  --url URL				the YouTube video url for the video you want to scrape
+					(should be available)
 
-  --pattern PATTERN     	The regular expression pattern you use to parse and
-                        	match text patterns in comments. By default, all
-                        	comments are matched and added to the JSON.
+  --pattern PATTERN			The regular expression pattern you use to parse and
+					match text patterns in comments (case insensitive). By
+					default, all comments are matched and added to the
+					JSON.
 
-  -o OUTPUT, --output OUTPUT	The output file you will store the JSON in. Defaults
-                        	to "comments.json".
+  -o OUTPUT, --output OUTPUT		The output file you will store the JSON in. Defaults
+					to "comments.json".
 
-  --hours HOURS         	The maximum number of hours you want the program to
-                        	run.
+  --hours HOURS				The maximum number of hours you want the program to
+					run.
 
-  --minutes MINUTES     	The maximum number of minutes you want the program to
-                        	run.
+  --minutes MINUTES			The maximum number of minutes you want the program to
+					run.
 
-  --seconds SECONDS     	The maximum number of seconds you want the program to
-                        	run.
+  --seconds SECONDS			The maximum number of seconds you want the program to
+					run.
+
+  -L, --enabled_logging			enable logging (sets the logger level to debug)
+
+  -F LOGFILE, --logfile	LOGFILE 	the logfile that you want to send logging output to
+
+  -B, --buffer				Read in the dictionaries returned in each iteration
+					and immediately write it to the json file. This is
+					highly recommended for videos with large numbers of
+					comments (1000+ comments).
 ```
 ### Setup steps
 1. Ensure you have git bash installed.
