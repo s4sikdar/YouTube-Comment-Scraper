@@ -16,7 +16,6 @@ from functools import wraps
 import logging
 import traceback
 
-
 SECONDS_PER_MINUTE = 60
 SECONDS_PER_HOUR = 3600
 
@@ -96,9 +95,10 @@ class YoutubeShortsIterator:
         self.play_button_selector = 'ytd-shorts-player-controls yt-icon-button:nth-child(1) button'
         self.mute_button_selector = 'ytd-shorts-player-controls yt-icon-button:nth-child(2) button'
         self.expand_comments_button = '#comments-button ytd-button-renderer yt-button-shape label button'
-        self.comment_box_selector = '#shorts-container #watch-while-engagement-panel #contents #contents'
+        self.comment_box_selector = '#shorts-container #watch-while-engagement-panel #contents ytd-comments #contents'
         # CSS selectors for the section containing comments
         self.current_thread_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)})'
+        self.entire_parent_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({(self.comment_thread_count + 1)}) #comment'
         self.video_author_commenter_selector = f'{self.current_thread_selector} ytd-author-comment-badge-renderer #container #text-container #text'
         self.commenter_selector = f'{self.current_thread_selector} #body #main #header-author > h3 #author-text'
         self.comment_link_selector = f'{self.current_thread_selector} #body #main #header-author yt-formatted-string a'
@@ -273,6 +273,7 @@ class YoutubeShortsIterator:
             would be used for count, and self.reply_count would be used for child_count).
         '''
         self.current_thread_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({count})'
+        self.entire_parent_selector = f'{self.comment_box_selector} ytd-comment-thread-renderer:nth-child({count}) #comment'
         self.commenter_selector = f'{self.current_thread_selector} #body #main #header-author > h3 #author-text'
         self.comment_link_selector = f'{self.current_thread_selector} #body #main #header-author yt-formatted-string a'
         self.comment_text_selector = f'{self.current_thread_selector} #body #main #expander #content #content-text'
@@ -334,47 +335,19 @@ class YoutubeShortsIterator:
         return self.driver.execute_script(f'return document.querySelector("{self.comment_box_selector}").scrollTop;')
 
 
-    def scroll_out_of_view(self, element):
+    def scroll_to_top(self, css_selector):
         '''
-            scroll_out_of_view(self, element) -> None
-            scroll_out_of_view: YouTubeShortsIterator selenium.webdriver.remote.webelement.WebElement -> None
-            scrolls the container of the element by the total height of the given element (including margins).
-            This is normally used with the top-most visible element in the container so that it is scrolled out
-            of visibility. The element passed in is of type selenium.webdriver.remote.webelement.WebElement .
+            scroll_to_top(self, element) -> None
+            scroll_to_top: YouTubeShortsIterator selenium.webdriver.remote.webelement.WebElement -> None
+            Find the element with the given css selector and scroll the element such that it is at the top of the
+            containing div. This is used with elements representing individual comments in the comments section, so
+            that they are scrolled to the top of the containing div.
         '''
-        comment_box_container = WebDriverWait(self.driver, timeout=20, poll_frequency=0.1).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, self.comment_box_selector))
-        )
-        comment_box_location = comment_box_container.location
-        y_offset = comment_box_location['y']
-        margin_top = element.value_of_css_property('margin-top').split('px')[0]
-        margin_bottom = element.value_of_css_property('margin-bottom').split('px')[0]
-        padding_top = element.value_of_css_property('padding-top').split('px')[0]
-        padding_bottom = element.value_of_css_property('padding-bottom').split('px')[0]
-        border_top = element.value_of_css_property('border-top-width').split('px')[0]
-        border_bottom = element.value_of_css_property('border-bottom-width').split('px')[0]
-        margin_top = int(margin_top)
-        margin_bottom = int(margin_bottom)
-        padding_top = int(padding_top)
-        padding_bottom = int(padding_bottom)
-        border_top = int(border_top)
-        border_bottom = int(border_bottom)
-        scroll_amount = element.size['height'] + margin_top + margin_bottom + padding_top + padding_bottom + border_top + border_bottom
-        scrolltop_value = self.return_scrolltop_value()
-        # Log element location and dimension info
-        self.logger.debug(f'element id: {element.id}')
-        self.logger.debug(f'amount container has scrolled down: {scrolltop_value}')
-        self.logger.debug(f'element location: {element.location}')
-        self.logger.debug(f'element size: {element.size}')
-        self.logger.debug(f'margin-top of element: {margin_top}, margin-bottom of element: {margin_bottom}')
-        self.logger.debug(f'padding-top of element: {padding_top}, padding-bottom of element: {padding_bottom}')
-        self.logger.debug(f'border-top of element: {border_top}, border-bottom of element: {border_bottom}\n')
-        amount_to_scroll = max(scroll_amount, 0)
-        # offset the scrolling responsibilities to JavaScript
-        try:
-            self.driver.execute_script(f'document.querySelector("{self.comment_box_selector}").scrollTop += {amount_to_scroll}')
-        except Exception as err:
-            self.logger.exception(err)
+        if css_selector:
+            try:
+                self.driver.execute_script(f'document.querySelector("{css_selector}").scrollIntoView(true);')
+            except Exception as err:
+                self.logger.exception(err)
 
 
     def iterate_child(self):
@@ -391,7 +364,6 @@ class YoutubeShortsIterator:
             self.logger.debug(f'failed to find replies for comment number {(self.comment_thread_count + 1)} and css selector {self.first_reply_selector}')
             self.logger.debug(f'comment info for comment number {(self.comment_thread_count + 1)}: {current_comment}')
         else:
-            self.scroll_out_of_view(self.parent_comment)
             while more_comments:
                 self.current_reply = self.driver.find_element(By.CSS_SELECTOR, self.reply_text_selector)
                 self.reply_channel_name = self.driver.find_element(By.CSS_SELECTOR, self.reply_author_name_selector)
@@ -403,7 +375,7 @@ class YoutubeShortsIterator:
                 reply_text = self.current_reply.text.strip()
                 comment_link = ''
                 full_reply = self.get_selector(self.reply_selector)
-                self.scroll_out_of_view(full_reply)
+                self.scroll_to_top(self.reply_selector)
                 comment_link = self.get_attribute(self.reply_link, 'href')
                 reply_json = {
                     'commenter': name,
@@ -429,12 +401,12 @@ class YoutubeShortsIterator:
                 more_comments = self.element_exists(self.reply_text_selector, wait_time=0.1) or\
                                 self.element_exists(self.more_replies_selector, wait_time=0.1)
         finally:
-            scrolltop_value = self.return_scrolltop_value()
-            amount_to_scroll_up = scrolltop_value - self.parent_comment_pos
-            self.driver.execute_script(f'document.querySelector("{self.comment_box_selector}").scrollTop -= {amount_to_scroll_up}')
+            #scrolltop_value = self.return_scrolltop_value()
+            #amount_to_scroll_up = scrolltop_value - self.parent_comment_pos
+            self.scroll_to_top(self.entire_parent_selector)
             self.comment_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.less_replies_selector)
             ActionChains(self.driver).move_to_element(self.comment_replies_button).pause(0.5).click(self.comment_replies_button).perform()
-            self.scroll_out_of_view(self.get_selector(self.current_thread_selector, wait_time=20))
+            self.scroll_to_top(self.current_thread_selector)
             self.reply_count = 0
             self.comment_thread_count += 1
             resulting_comment = self.current_comments_json
@@ -469,6 +441,7 @@ class YoutubeShortsIterator:
             try:
                 self.current_comment = self.get_selector(self.comment_text_selector, wait_time=20)
                 current_thread = self.get_selector(self.current_thread_selector, wait_time=20)
+                current_parent_thread = self.get_selector(self.entire_parent_selector, wait_time=20)
             except Exception as err:
                 self.driver.quit()
                 self.driver_started = False
@@ -478,6 +451,10 @@ class YoutubeShortsIterator:
                     raise StopIteration
                 self.logger.exception(err)
                 raise StopIteration
+            try:
+                self.scroll_to_top(self.current_thread_selector)
+            except Exception as err:
+                self.logger.exception(err)
             self.comment_channel_name = self.get_selector(self.commenter_selector)
             name = self.comment_channel_name.text.strip()[1:]
             if not name:
@@ -494,12 +471,18 @@ class YoutubeShortsIterator:
             }
             if self.element_exists(self.expand_replies_selector, wait_time=0.1):
                 try:
-                    self.parent_comment = self.current_comment
-                    self.parent_comment_pos = self.return_scrolltop_value()
+                    self.parent_comment = current_parent_thread
+                    #self.parent_comment_pos = self.return_scrolltop_value()
                     self.current_comments_json = resulting_comment
                     self.comment_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.expand_replies_selector)
                     ActionChains(self.driver).move_to_element(self.comment_replies_button).pause(0.5).click(self.comment_replies_button).perform()
                 except:
+                    if self.regex_pattern:
+                        comment_match = re.search(self.regex_pattern, resulting_comment['comment content'], re.ignorecase)
+                        if comment_match:
+                            return resulting_comment
+                        else:
+                            return None
                     return resulting_comment
                 else:
                     if self.regex_pattern and (not self.thread_has_pattern):
@@ -508,7 +491,6 @@ class YoutubeShortsIterator:
                             self.thread_has_pattern = True
                     return self.iterate_child()
             else:
-                self.scroll_out_of_view(current_thread)
                 self.total_comments_parsed += 1
                 self.comment_thread_count += 1
                 self.reset_elements()
