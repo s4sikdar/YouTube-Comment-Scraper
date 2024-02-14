@@ -16,6 +16,7 @@ from functools import wraps
 import logging
 import traceback
 
+
 SECONDS_PER_MINUTE = 60
 SECONDS_PER_HOUR = 3600
 
@@ -343,9 +344,29 @@ class YoutubeShortsIterator:
             containing div. This is used with elements representing individual comments in the comments section, so
             that they are scrolled to the top of the containing div.
         '''
+        element_to_scroll = self.get_selector(css_selector)
+        comment_box = self.get_selector(self.comment_box_selector)
+        javascript_code = f'document.querySelector("{css_selector}").scrollIntoView(true);'
+        container_height = self.driver.execute_script(f'return document.querySelector("{self.comment_box_selector}").offsetHeight;')
+        scroll_height = self.driver.execute_script(f'return document.querySelector("{self.comment_box_selector}").scrollHeight;')
+        container_height = self.driver.execute_script(f'return document.querySelector("{self.comment_box_selector}").offsetHeight;')
+        distance_from_parent = self.driver.execute_script(f'return document.querySelector("{css_selector}").offsetTop;')
+        amount_scrolled = self.return_scrolltop_value()
+        amount_left_to_scroll = scroll_height - container_height - amount_scrolled
+        self.logger.debug(f'Container height: {container_height}')
+        self.logger.debug(f'Container scroll height: {scroll_height}')
+        self.logger.debug(f'Container amount scrolled: {self.return_scrolltop_value()}')
+        self.logger.debug(f'Element offsetTop value: {distance_from_parent}')
+        self.logger.debug(f'Element text: {element_to_scroll.text}')
+        self.logger.debug(f'JavaScript code: {javascript_code}')
         if css_selector:
             try:
-                self.driver.execute_script(f'document.querySelector("{css_selector}").scrollIntoView(true);')
+                if amount_left_to_scroll > 20:
+                    self.driver.execute_script(javascript_code)
+                else:
+                    action_chain = ActionChains(self.driver)
+                    action_chain.click_and_hold(comment_box).move_by_offset(0, 10).perform()
+                    action_chain.reset_actions()
             except Exception as err:
                 self.logger.exception(err)
 
@@ -401,8 +422,6 @@ class YoutubeShortsIterator:
                 more_comments = self.element_exists(self.reply_text_selector, wait_time=0.1) or\
                                 self.element_exists(self.more_replies_selector, wait_time=0.1)
         finally:
-            #scrolltop_value = self.return_scrolltop_value()
-            #amount_to_scroll_up = scrolltop_value - self.parent_comment_pos
             self.scroll_to_top(self.entire_parent_selector)
             self.comment_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.less_replies_selector)
             ActionChains(self.driver).move_to_element(self.comment_replies_button).pause(0.5).click(self.comment_replies_button).perform()
