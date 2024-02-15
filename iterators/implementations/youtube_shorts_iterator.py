@@ -221,6 +221,24 @@ class YoutubeShortsIterator:
             self.start_time = datetime.datetime.now()
 
 
+    def change_scrollbar_style(self):
+        '''
+            change_scrollbar_style(Self) -> None
+            changes the styling of the scrollbar on the element with the selector being self.comment_box_selector. It
+            changes the styling such that the vertical scrollbar is visible, it is grey in colour and the scrollbar
+            width is 'auto'.
+        '''
+        # We must wait till the comment box container is visible before we make changes to its styling.
+        comment_box = self.get_selector(self.comment_box_selector, wait_time=30)
+        try:
+            self.driver.execute_script(f'document.querySelector("{self.comment_box_selector}").style.overflowY = "scroll";')
+            self.driver.execute_script(f'document.querySelector("{self.comment_box_selector}").style.scrollbarWidth = "auto";')
+            self.driver.execute_script(f'document.querySelector("{self.comment_box_selector}").style.scrollbarColor = "gray";')
+        except Exception as err:
+            self.logger.debug('Error with javascript in change_scrollbar_style function: {err}')
+            self.logger.exception(err)
+
+
     def setup(func):
         '''
             startup(function) -> function
@@ -244,6 +262,7 @@ class YoutubeShortsIterator:
                 expand_comments_button = self.get_selector(self.expand_comments_button)
                 expand_comments_button.click()
                 self.set_time_limit(self.hours, self.minutes, self.seconds)
+                self.change_scrollbar_style()
             return func(self, *args, **kwargs)
         return setup_beforehand
 
@@ -344,29 +363,26 @@ class YoutubeShortsIterator:
             containing div. This is used with elements representing individual comments in the comments section, so
             that they are scrolled to the top of the containing div.
         '''
-        element_to_scroll = self.get_selector(css_selector)
-        comment_box = self.get_selector(self.comment_box_selector)
-        javascript_code = f'document.querySelector("{css_selector}").scrollIntoView(true);'
-        container_height = self.driver.execute_script(f'return document.querySelector("{self.comment_box_selector}").offsetHeight;')
-        scroll_height = self.driver.execute_script(f'return document.querySelector("{self.comment_box_selector}").scrollHeight;')
-        container_height = self.driver.execute_script(f'return document.querySelector("{self.comment_box_selector}").offsetHeight;')
-        distance_from_parent = self.driver.execute_script(f'return document.querySelector("{css_selector}").offsetTop;')
-        amount_scrolled = self.return_scrolltop_value()
-        amount_left_to_scroll = scroll_height - container_height - amount_scrolled
-        self.logger.debug(f'Container height: {container_height}')
-        self.logger.debug(f'Container scroll height: {scroll_height}')
-        self.logger.debug(f'Container amount scrolled: {self.return_scrolltop_value()}')
-        self.logger.debug(f'Element offsetTop value: {distance_from_parent}')
-        self.logger.debug(f'Element text: {element_to_scroll.text}')
-        self.logger.debug(f'JavaScript code: {javascript_code}')
         if css_selector:
+            element_to_scroll = self.get_selector(css_selector)
+            comment_box = self.get_selector(self.comment_box_selector)
+            container_height = self.driver.execute_script(f'return document.querySelector("{self.comment_box_selector}").offsetHeight;')
+            scroll_height = self.driver.execute_script(f'return document.querySelector("{self.comment_box_selector}").scrollHeight;')
+            distance_from_parent = self.driver.execute_script(f'return document.querySelector("{css_selector}").offsetTop;')
+            # scroll_height is the total height of the comment box container (including the parts scrolled out of view).
+            # distance_from_parent is how far element_to_scroll is away from the beginning of the container (scrolled out content included)
+            # taking the difference between the 2 and dividing by container_height tells us where in the visible comment box container
+            # the element in question is visible (i.e. does it show in the bottom quarter of the container, the bottom third, etc.)
+            portion_of_page_elem_location = float((scroll_height - distance_from_parent) / container_height)
+            javascript_code = f'document.querySelector("{css_selector}").scrollIntoView(true);'
+            if portion_of_page_elem_location < 0.5:
+                javascript_code = f'document.querySelector("{css_selector}").scrollBy(0, {scroll_height});'
+            self.logger.debug(f'Container height: {container_height}')
+            self.logger.debug(f'Container scroll height: {scroll_height}')
+            self.logger.debug(f'Element offsetTop value: {distance_from_parent}')
+            self.logger.debug(f'JavaScript code: {javascript_code}')
             try:
-                if amount_left_to_scroll > 20:
-                    self.driver.execute_script(javascript_code)
-                else:
-                    action_chain = ActionChains(self.driver)
-                    action_chain.click_and_hold(comment_box).move_by_offset(0, 10).perform()
-                    action_chain.reset_actions()
+                self.driver.execute_script(javascript_code)
             except Exception as err:
                 self.logger.exception(err)
 
