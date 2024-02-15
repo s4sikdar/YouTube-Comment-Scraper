@@ -507,7 +507,6 @@ class YoutubeShortsIterator:
             if self.element_exists(self.expand_replies_selector, wait_time=0.1):
                 try:
                     self.parent_comment = current_parent_thread
-                    #self.parent_comment_pos = self.return_scrolltop_value()
                     self.current_comments_json = resulting_comment
                     self.comment_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.expand_replies_selector)
                     ActionChains(self.driver).move_to_element(self.comment_replies_button).pause(0.5).click(self.comment_replies_button).perform()
