@@ -68,6 +68,7 @@ class YoutubeShortsIterator:
             logfile - the name of the logfile that you want to use to log messages to. By default, the log file name is 'debug.log'
     '''
     def __init__(self, video_url, limit=None, pattern=None, hours=0, minutes=0, seconds=0, enabled_logging=False, logfile='debug.log'):
+        assert(limit >= 0)
         self.comment_thread_count = 0
         self.reply_count = 0
         self.hours = 0
@@ -394,7 +395,8 @@ class YoutubeShortsIterator:
         '''
         try:
             self.first_reply_comment = self.get_selector(self.first_reply_selector, wait_time=20)
-            more_comments = self.element_exists(self.reply_selector) or self.element_exists(self.more_replies_selector)
+            more_comments = (self.element_exists(self.reply_selector) or self.element_exists(self.more_replies_selector)) and \
+                            (not self.time_to_stop_scraping())
         except:
             current_comment = self.current_comments_json
             # log these errors if the logger level is set to debug
@@ -435,8 +437,9 @@ class YoutubeShortsIterator:
                             next_comment = self.get_selector(self.reply_text_selector, wait_time=20)
                         except TimeoutException:
                             break
-                more_comments = self.element_exists(self.reply_text_selector, wait_time=0.1) or\
-                                self.element_exists(self.more_replies_selector, wait_time=0.1)
+                more_comments = (self.element_exists(self.reply_text_selector, wait_time=0.1) or \
+                                self.element_exists(self.more_replies_selector, wait_time=0.1)) and \
+                                (and not self.time_to_stop_scraping())
         finally:
             self.scroll_to_top(self.entire_parent_selector)
             self.comment_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.less_replies_selector)
