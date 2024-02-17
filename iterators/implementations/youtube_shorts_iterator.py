@@ -322,7 +322,7 @@ class YoutubeShortsIterator:
             time limit, then we return True (indicating we should stop scraping comments).
             Otherwise, return False.
         '''
-        if self.limit and self.total_comments_parsed >= self.limit:
+        if self.limit != None and self.total_comments_parsed >= self.limit:
         #if self.total_comments_parsed >= 30:
             return True
         elif self.time_limit_exists:
@@ -393,6 +393,7 @@ class YoutubeShortsIterator:
             iterate_child(self) -> (anyOf Dict None)
             Iterates through the replies of a youtube comment, aggregates the comment into a dictionary, and returns it.
         '''
+        self.total_comments_parsed += 1
         try:
             self.first_reply_comment = self.get_selector(self.first_reply_selector, wait_time=20)
             more_comments = (self.element_exists(self.reply_selector) or self.element_exists(self.more_replies_selector)) and \
@@ -439,7 +440,7 @@ class YoutubeShortsIterator:
                             break
                 more_comments = (self.element_exists(self.reply_text_selector, wait_time=0.1) or \
                                 self.element_exists(self.more_replies_selector, wait_time=0.1)) and \
-                                (and not self.time_to_stop_scraping())
+                                (not self.time_to_stop_scraping())
         finally:
             self.scroll_to_top(self.entire_parent_selector)
             self.comment_replies_button = self.driver.find_element(By.CSS_SELECTOR, self.less_replies_selector)
