@@ -52,9 +52,22 @@ class TestShortVideos(unittest.TestCase):
             self.video_available = False
 
 
+    def video_not_there(func):
+        '''
+            video_not_there(func) -> func
+            decorator the function to check if the video is not there, and skip the
+            test if the video is not there
+        '''
+        @wraps(func)
+        def skip_unless_video_exists(self, *args, **kwargs):
+            if not self.video_available:
+                self.skipTest('Video not available')
+            return func(self, *args, **kwargs)
+        return skip_unless_video_exists
+
+
+    @video_not_there
     def test_comment_limit(self):
-        if not self.video_available:
-            self.skipTest('Video not available')
         comments = []
         for item in IteratorFactory(self.youtube_url, limit=30):
             comments.append(item)
@@ -66,9 +79,8 @@ class TestShortVideos(unittest.TestCase):
         self.assertEqual(length, 30)
 
 
+    @video_not_there
     def test_zero_comments(self):
-        if not self.video_available:
-            self.skipTest('Video not available')
         comments = []
         for item in IteratorFactory(self.youtube_url, limit=0):
             comments.append(item)
@@ -80,9 +92,8 @@ class TestShortVideos(unittest.TestCase):
         self.assertEqual(length, 0)
 
 
+    @video_not_there
     def test_100_comment_limit(self):
-        if not self.video_available:
-            self.skipTest('Video not available')
         comments = []
         for item in IteratorFactory(self.youtube_url, limit=100):
             comments.append(item)
@@ -93,6 +104,18 @@ class TestShortVideos(unittest.TestCase):
                 length += 1
         self.assertEqual(length, 100)
 
+
+    @video_not_there
+    def test_500_comment_limit(self):
+        comments = []
+        for item in IteratorFactory(self.youtube_url, limit=500):
+            comments.append(item)
+        length = 0
+        for item in comments:
+            length += 1
+            for reply in item['children']:
+                length += 1
+        self.assertEqual(length, 500)
 
 
 if __name__ == '__main__':
