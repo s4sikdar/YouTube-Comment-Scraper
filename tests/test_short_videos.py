@@ -22,6 +22,10 @@ from iterators.iterlist import IteratorAsList
 
 class TestShortVideos(unittest.TestCase):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setup_done = False
+
 
     def get_selector(self, driver, css_selector, wait_time=10):
         '''
@@ -40,16 +44,18 @@ class TestShortVideos(unittest.TestCase):
 
 
     def setUp(self):
-        self.selector_to_search = '#shorts-inner-container'
-        self.youtube_url = 'https://www.youtube.com/shorts/ZyP6Ele5HqY'
-        self.video_available = True
-        driver = webdriver.Chrome()
-        try:
-            driver.get(self.youtube_url)
-            shorts_container = self.get_selector(driver, self.selector_to_search)
-            driver.quit()
-        except Exception as err:
-            self.video_available = False
+        if not self.setup_done:
+            self.setup_done = True
+            self.selector_to_search = '#shorts-inner-container'
+            self.youtube_url = 'https://www.youtube.com/shorts/ZyP6Ele5HqY'
+            self.video_available = True
+            driver = webdriver.Chrome()
+            try:
+                driver.get(self.youtube_url)
+                shorts_container = self.get_selector(driver, self.selector_to_search)
+                driver.quit()
+            except Exception as err:
+                self.video_available = False
 
 
     def video_not_there(func):
@@ -124,6 +130,20 @@ class TestShortVideos(unittest.TestCase):
         threshold = 20
         time_limit = datetime.timedelta(seconds = (30 + threshold))
         comment_iterator = IteratorFactory(self.youtube_url, seconds=30)
+        start_time = datetime.datetime.now()
+        for item in comment_iterator:
+            comments.append(item)
+        ending_time = datetime.datetime.now()
+        elapsed_time = ending_time - start_time
+        self.assertLessEqual(elapsed_time, time_limit)
+
+
+    @video_not_there
+    def test_one_minute_limit(self):
+        comments = []
+        threshold = 20
+        time_limit = datetime.timedelta(seconds = (60 + threshold))
+        comment_iterator = IteratorFactory(self.youtube_url, minutes=1)
         start_time = datetime.datetime.now()
         for item in comment_iterator:
             comments.append(item)
