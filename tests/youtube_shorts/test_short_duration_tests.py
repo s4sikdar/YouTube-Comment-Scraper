@@ -48,23 +48,18 @@ class ShortDurationShortVideoTests(unittest.TestCase):
         return element_to_find
 
 
-    def setUp(self):
-        if not self.setup_done:
+    def ignore_resource_warning(func):
+        '''
+            ignore_resource_warnings_func(func) -> func
+            decorator to ignore resource warnings
+        '''
+        def ignore_resource_warnings_func(self, *args, **kwargs):
             # Code to ignore warnings found in this stack overflow question(below):
             # https://stackoverflow.com/questions/26563711/disabling-python-3-2-resourcewarning
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", ResourceWarning)
-            self.setup_done = True
-            self.selector_to_search = '#shorts-inner-container'
-            self.youtube_url = 'https://www.youtube.com/shorts/ZyP6Ele5HqY'
-            self.video_available = True
-            driver = webdriver.Chrome()
-            try:
-                driver.get(self.youtube_url)
-                shorts_container = self.get_selector(driver, self.selector_to_search)
-                driver.quit()
-            except Exception as err:
-                self.video_available = False
+                return func(self, *args, **kwargs)
+        return ignore_resource_warnings_func
 
 
     def video_not_there(func):
@@ -81,8 +76,25 @@ class ShortDurationShortVideoTests(unittest.TestCase):
         return skip_unless_video_exists
 
 
+    @ignore_resource_warning
+    def setUp(self):
+        if not self.setup_done:
+            self.setup_done = True
+            self.selector_to_search = '#shorts-inner-container'
+            self.youtube_url = 'https://www.youtube.com/shorts/ZyP6Ele5HqY'
+            self.video_available = True
+            driver = webdriver.Chrome()
+            try:
+                driver.get(self.youtube_url)
+                shorts_container = self.get_selector(driver, self.selector_to_search)
+                driver.quit()
+            except Exception as err:
+                self.video_available = False
+
+
     @video_not_there
-    def test_comment_limit(self):
+    @ignore_resource_warning
+    def test_30_comment_limit(self):
         comments = []
         for item in IteratorFactory(self.youtube_url, limit=30):
             comments.append(item)
@@ -95,6 +107,7 @@ class ShortDurationShortVideoTests(unittest.TestCase):
 
 
     @video_not_there
+    @ignore_resource_warning
     def test_zero_comments(self):
         comments = []
         for item in IteratorFactory(self.youtube_url, limit=0):
@@ -108,6 +121,7 @@ class ShortDurationShortVideoTests(unittest.TestCase):
 
 
     @video_not_there
+    @ignore_resource_warning
     def test_100_comment_limit(self):
         comments = []
         for item in IteratorFactory(self.youtube_url, limit=100):
@@ -121,6 +135,7 @@ class ShortDurationShortVideoTests(unittest.TestCase):
 
 
     @video_not_there
+    @ignore_resource_warning
     def test_30_second_limit(self):
         comments = []
         threshold = 20
@@ -135,6 +150,7 @@ class ShortDurationShortVideoTests(unittest.TestCase):
 
 
     @video_not_there
+    @ignore_resource_warning
     def test_one_minute_limit(self):
         comments = []
         threshold = 20

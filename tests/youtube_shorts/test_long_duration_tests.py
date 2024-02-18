@@ -48,12 +48,23 @@ class LongDurationShortVideoTests(unittest.TestCase):
         return element_to_find
 
 
-    def setUp(self):
-        if not self.setup_done:
+    def ignore_resource_warning(func):
+        '''
+            ignore_resource_warnings_func(func) -> func
+            decorator to ignore resource warnings
+        '''
+        def ignore_resource_warnings_func(self, *args, **kwargs):
             # Code to ignore warnings found in this stack overflow question(below):
             # https://stackoverflow.com/questions/26563711/disabling-python-3-2-resourcewarning
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", ResourceWarning)
+                return func(self, *args, **kwargs)
+        return ignore_resource_warnings_func
+
+
+    @ignore_resource_warning
+    def setUp(self):
+        if not self.setup_done:
             self.setup_done = True
             self.selector_to_search = '#shorts-inner-container'
             self.youtube_url = 'https://www.youtube.com/shorts/JfbnpYLe3Ms'
@@ -82,6 +93,7 @@ class LongDurationShortVideoTests(unittest.TestCase):
 
 
     @video_not_there
+    @ignore_resource_warning
     def test_500_comment_limit(self):
         comments = []
         for item in IteratorFactory(self.youtube_url, limit=500):
@@ -95,6 +107,7 @@ class LongDurationShortVideoTests(unittest.TestCase):
 
 
     @video_not_there
+    @ignore_resource_warning
     def test_1000_comment_limit(self):
         comments = []
         length = 0
@@ -106,6 +119,7 @@ class LongDurationShortVideoTests(unittest.TestCase):
 
 
     @video_not_there
+    @ignore_resource_warning
     def test_5_minute_limit(self):
         comments = []
         threshold = 20
@@ -121,6 +135,7 @@ class LongDurationShortVideoTests(unittest.TestCase):
 
 
     @video_not_there
+    @ignore_resource_warning
     def test_30_minute_limit(self):
         comments = []
         threshold = 20
@@ -136,6 +151,7 @@ class LongDurationShortVideoTests(unittest.TestCase):
 
 
     @video_not_there
+    @ignore_resource_warning
     def test_one_hour_limit(self):
         comments = []
         threshold = 20
