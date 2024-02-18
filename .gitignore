@@ -2,6 +2,7 @@
 virtual_env_dependencies/**
 iterators/__pycache__/**
 tests/youtube_shorts/__pycache__/**
+tests/__pycache__/**
 iterators/implementations/__pycache__/**
 __pycache__/**
 comments.json
