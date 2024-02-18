@@ -68,12 +68,11 @@ class YoutubeShortsIterator:
             logfile - the name of the logfile that you want to use to log messages to. By default, the log file name is 'debug.log'
     '''
     def __init__(self, video_url, limit=None, pattern=None, hours=0, minutes=0, seconds=0, enabled_logging=False, logfile='debug.log'):
-        assert(limit >= 0)
         self.comment_thread_count = 0
         self.reply_count = 0
-        self.hours = 0
-        self.minutes = 0
-        self.seconds = 0
+        self.hours = hours
+        self.minutes = minutes
+        self.seconds = seconds
         self.total_comments_parsed = 0
         self.video_url = video_url
         self.limit = limit
@@ -254,6 +253,7 @@ class YoutubeShortsIterator:
                 self.logger = logging.getLogger(__name__)
                 if self.enabled_logging:
                     self.logger.setLevel(logging.DEBUG)
+                    self.logger.debug('Set logger in setup')
                 self.started_yet = True
                 self.driver_started = True
                 self.driver.get(self.video_url)
@@ -262,8 +262,8 @@ class YoutubeShortsIterator:
                 self.mute_video()
                 expand_comments_button = self.get_selector(self.expand_comments_button)
                 expand_comments_button.click()
-                self.set_time_limit(self.hours, self.minutes, self.seconds)
                 self.change_scrollbar_style()
+                self.set_time_limit(self.hours, self.minutes, self.seconds)
             return func(self, *args, **kwargs)
         return setup_beforehand
 

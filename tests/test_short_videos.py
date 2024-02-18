@@ -118,5 +118,19 @@ class TestShortVideos(unittest.TestCase):
         self.assertEqual(length, 500)
 
 
+    @video_not_there
+    def test_30_second_limit(self):
+        comments = []
+        threshold = 20
+        time_limit = datetime.timedelta(seconds = (30 + threshold))
+        comment_iterator = IteratorFactory(self.youtube_url, seconds=30)
+        start_time = datetime.datetime.now()
+        for item in comment_iterator:
+            comments.append(item)
+        ending_time = datetime.datetime.now()
+        elapsed_time = ending_time - start_time
+        self.assertLessEqual(elapsed_time, time_limit)
+
+
 if __name__ == '__main__':
     unittest.main()
