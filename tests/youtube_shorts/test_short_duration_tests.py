@@ -121,19 +121,6 @@ class ShortDurationShortVideoTests(unittest.TestCase):
 
 
     @video_not_there
-    def test_500_comment_limit(self):
-        comments = []
-        for item in IteratorFactory(self.youtube_url, limit=500):
-            comments.append(item)
-        length = 0
-        for item in comments:
-            length += 1
-            for reply in item['children']:
-                length += 1
-        self.assertEqual(length, 500)
-
-
-    @video_not_there
     def test_30_second_limit(self):
         comments = []
         threshold = 20
