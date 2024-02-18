@@ -13,6 +13,7 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from functools import wraps
 import logging
 import traceback
+import warnings
 
 from iterators.factory import IteratorFactory
 from iterators.iterlist import IteratorAsList
@@ -21,7 +22,11 @@ from iterators.iterlist import IteratorAsList
 
 
 class LongDurationShortVideoTests(unittest.TestCase):
-
+    '''
+        LongDurationShortVideoTests(self, *args, **kwargs)
+        A class with tests that take longer to run (i.e. tests that parse 500 or 1000 comments, tests that specify
+        to scrape for 30 minutes or an hour, etc.)
+    '''
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setup_done = False
@@ -45,6 +50,10 @@ class LongDurationShortVideoTests(unittest.TestCase):
 
     def setUp(self):
         if not self.setup_done:
+            # Code to ignore warnings found in this stack overflow question(below):
+            # https://stackoverflow.com/questions/26563711/disabling-python-3-2-resourcewarning
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", ResourceWarning)
             self.setup_done = True
             self.selector_to_search = '#shorts-inner-container'
             self.youtube_url = 'https://www.youtube.com/shorts/JfbnpYLe3Ms'
