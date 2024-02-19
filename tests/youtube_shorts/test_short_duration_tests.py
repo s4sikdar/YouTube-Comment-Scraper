@@ -14,6 +14,8 @@ from functools import wraps
 import logging
 import traceback
 import warnings
+import os
+import platform
 
 from iterators.factory import IteratorFactory
 from iterators.iterlist import IteratorAsList
@@ -79,6 +81,15 @@ class ShortDurationShortVideoTests(unittest.TestCase):
     @ignore_resource_warning
     def setUp(self):
         if not self.setup_done:
+            current_dir = os.getcwd()
+            files = os.listdir(current_dir)
+            os_name = platform.system()
+            if os_name == 'Windows':
+                file_path = '.\\debug.log'
+            else:
+                file_path = './debug.log'
+            if 'debug.log' in files:
+                os.remove(file_path)
             self.setup_done = True
             self.selector_to_search = '#shorts-inner-container'
             self.youtube_url = 'https://www.youtube.com/shorts/ZyP6Ele5HqY'
@@ -162,6 +173,19 @@ class ShortDurationShortVideoTests(unittest.TestCase):
         ending_time = datetime.datetime.now()
         elapsed_time = ending_time - start_time
         self.assertLessEqual(elapsed_time, time_limit)
+
+
+    @video_not_there
+    @ignore_resource_warning
+    def test_logging_default_logfile(self):
+        current_dir = os.getcwd()
+        files = os.listdir(path=current_dir)
+        self.assertFalse('debug.log' in files)
+        comments = []
+        for item in IteratorFactory(self.youtube_url, limit=30, enabled_logging=True):
+            comments.append(item)
+        files = os.listdir(path=current_dir)
+        self.assertTrue('debug.log' in files)
 
 
 if __name__ == '__main__':
