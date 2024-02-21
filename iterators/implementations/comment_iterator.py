@@ -69,9 +69,9 @@ class CommentIterator:
     def __init__(self, youtube_url, limit=None, pattern=None, hours=0, minutes=0, seconds=0, enabled_logging=False, logfile='debug.log'):
         self.comment_thread_count = 0
         self.reply_count = 0
-        self.hours = 0
-        self.minutes = 0
-        self.seconds = 0
+        self.hours = hours
+        self.minutes = minutes
+        self.seconds = seconds
         self.total_comments_parsed = 0
         self.youtube_url = youtube_url
         self.limit = limit
@@ -124,6 +124,27 @@ class CommentIterator:
         return log_output
 
 
+    def set_time_limit(self, hours, minutes, seconds):
+        '''
+            set_time_limit(self, hours, seconds, minutes) -> None
+            a helper method to setup the time limit attributes if necessary,
+            and to set a starting time if applicable as well. There is an attribute
+            (self.time_limit_exists) set to True if the hours, minutes or seconds
+            are specified to be non-zero. Otherwise, it is set to False (attribute is
+            used elsewhere).
+        '''
+        if ((hours == 0) and (minutes == 0) and (seconds == 0)):
+            self.time_limit_exists = False
+        else:
+            # total time limit in seconds, then converted to datetime.timedelta instance, since timedelta
+            # instances can be compared with other time delta instances (to check if elapsed time is greater than
+            # a threshold)
+            self.time_limit_exists = True
+            self.total_seconds = (hours * SECONDS_PER_HOUR) + (minutes * SECONDS_PER_MINUTE) + seconds
+            self.total_time_limit = datetime.timedelta(seconds = self.total_seconds)
+            self.start_time = datetime.datetime.now()
+
+
     def startup(self):
         '''
             startup(self) -> None
@@ -151,6 +172,8 @@ class CommentIterator:
             if self.limit == None:
                 self.limit = total_comments
             self.set_time_limit(self.hours, self.minutes, self.seconds)
+            self.file_handler = logging.FileHandler(self.log_file)
+            self.logger.addHandler(self.file_handler)
             if self.enabled_logging:
                 self.logger.setLevel(logging.DEBUG)
 
@@ -158,27 +181,6 @@ class CommentIterator:
     @staticmethod
     def regex_pattern():
         return r'^https://www\.youtube\.com/(?!shorts/)[^\.\s]+$'
-
-
-    def set_time_limit(self, hours, minutes, seconds):
-        '''
-            set_time_limit(self, hours, seconds, minutes) -> None
-            a helper method to setup the time limit attributes if necessary,
-            and to set a starting time if applicable as well. There is an attribute
-            (self.time_limit_exists) set to True if the hours, minutes or seconds
-            are specified to be non-zero. Otherwise, it is set to False (attribute is
-            used elsewhere).
-        '''
-        if ((hours == 0) and (minutes == 0) and (seconds == 0)):
-            self.time_limit_exists = False
-        else:
-            # total time limit in seconds, then converted to datetime.timedelta instance, since timedelta
-            # instances can be compared with other time delta instances (to check if elapsed time is greater than
-            # a threshold)
-            self.time_limit_exists = True
-            self.total_seconds = (hours * SECONDS_PER_HOUR) + (minutes * SECONDS_PER_MINUTE) + seconds
-            self.total_time_limit = datetime.timedelta(seconds = self.total_seconds)
-            self.start_time = datetime.datetime.now()
 
 
     def time_to_stop_scraping(self):
@@ -272,7 +274,8 @@ class CommentIterator:
             self.first_reply_comment = WebDriverWait(self.driver, timeout=20, poll_frequency=0.1).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, self.first_reply_selector))
             )
-            more_comments = self.element_exists(self.comment_reply_selector) or self.element_exists(self.more_replies_selector)
+            more_comments = (self.element_exists(self.comment_reply_selector) or self.element_exists(self.more_replies_selector)) \
+                            and (not self.time_to_stop_scraping())
         except:
             current_comment = self.current_comments_json
             # log these errors if the logger level is set to debug
@@ -312,7 +315,8 @@ class CommentIterator:
                             )
                         except TimeoutException:
                             break
-                more_comments = self.element_exists(self.comment_reply_selector) or self.element_exists(self.more_replies_selector)
+                more_comments = (self.element_exists(self.comment_reply_selector) or self.element_exists(self.more_replies_selector)) and \
+                                (not self.time_to_stop_scraping())
         finally:
             self.reply_count = 0
             self.comment_thread_count += 1
@@ -333,6 +337,7 @@ class CommentIterator:
 
     def __iter__(self):
         return self
+
 
     def go_to_next(self):
         '''
@@ -406,4 +411,5 @@ class CommentIterator:
         except Exception as err:
             if self.driver_started:
                 self.driver.quit()
+            logging.shutdown()
             raise StopIteration
