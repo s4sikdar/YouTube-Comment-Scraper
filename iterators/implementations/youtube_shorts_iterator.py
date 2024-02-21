@@ -228,9 +228,9 @@ class YoutubeShortsIterator:
             changes the styling such that the vertical scrollbar is visible, it is grey in colour and the scrollbar
             width is 'auto'.
         '''
-        # We must wait till the comment box container is visible before we make changes to its styling.
-        comment_box = self.get_selector(self.comment_box_selector, wait_time=30)
         try:
+            # We must wait till the comment box container is visible before we make changes to its styling.
+            comment_box = self.get_selector(self.comment_box_selector, wait_time=30)
             self.driver.execute_script(f'document.querySelector("{self.comment_box_selector}").style.overflowY = "scroll";')
             self.driver.execute_script(f'document.querySelector("{self.comment_box_selector}").style.scrollbarWidth = "auto";')
             self.driver.execute_script(f'document.querySelector("{self.comment_box_selector}").style.scrollbarColor = "gray";')
@@ -251,6 +251,8 @@ class YoutubeShortsIterator:
                 FORMAT = '%(asctime)s %(message)s'
                 logging.basicConfig(filename=self.log_file, level=logging.ERROR, format=FORMAT)
                 self.logger = logging.getLogger(__name__)
+                self.file_handler = logging.FileHandler(self.log_file)
+                self.logger.addHandler(self.file_handler)
                 if self.enabled_logging:
                     self.logger.setLevel(logging.DEBUG)
                     self.logger.debug('Set logger in setup')
@@ -554,6 +556,7 @@ class YoutubeShortsIterator:
         except:
             if self.driver_started:
                 self.driver.quit()
+            logging.shutdown()
             raise StopIteration
 
 

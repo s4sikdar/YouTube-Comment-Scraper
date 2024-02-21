@@ -78,18 +78,39 @@ class ShortDurationShortVideoTests(unittest.TestCase):
         return skip_unless_video_exists
 
 
+    def check_and_remove_logfile(logfile, after=False):
+        '''
+            check_and_remove_logfile(logfile) -> func
+            a decorator function to check if the logfile specified is in the current
+            directory, and remove the logfile if it is there. By default it only does
+            this before the test is run, but if specified, the file can remove the logfile
+            in question after the test is run by specifying after=True.
+        '''
+        def decorator_func(func):
+            @wraps(func)
+            def remove_logfile_before_test(self, *args, **kwargs):
+                current_dir = os.getcwd()
+                files = os.listdir(current_dir)
+                os_name = platform.system()
+                if os_name == 'Windows':
+                    file_path = f'.\\{logfile}'
+                else:
+                    file_path = './{logfile}'
+                if logfile in files:
+                    os.remove(file_path)
+                result = func(self, *args, **kwargs)
+                if after:
+                    files_after = os.listdir(current_dir)
+                    if logfile in files_after:
+                        os.remove(file_path)
+                return result
+            return remove_logfile_before_test
+        return decorator_func
+
+
     @ignore_resource_warning
     def setUp(self):
         if not self.setup_done:
-            current_dir = os.getcwd()
-            files = os.listdir(current_dir)
-            os_name = platform.system()
-            if os_name == 'Windows':
-                file_path = '.\\debug.log'
-            else:
-                file_path = './debug.log'
-            if 'debug.log' in files:
-                os.remove(file_path)
             self.setup_done = True
             self.selector_to_search = '#shorts-inner-container'
             self.youtube_url = 'https://www.youtube.com/shorts/ZyP6Ele5HqY'
@@ -175,6 +196,7 @@ class ShortDurationShortVideoTests(unittest.TestCase):
         self.assertLessEqual(elapsed_time, time_limit)
 
 
+    @check_and_remove_logfile('debug.log')
     @video_not_there
     @ignore_resource_warning
     def test_logging_default_logfile(self):
@@ -186,6 +208,20 @@ class ShortDurationShortVideoTests(unittest.TestCase):
             comments.append(item)
         files = os.listdir(path=current_dir)
         self.assertTrue('debug.log' in files)
+
+
+    @check_and_remove_logfile('non_default_file.log', after=True)
+    @video_not_there
+    @ignore_resource_warning
+    def test_logging_non_default_logfile(self):
+        current_dir = os.getcwd()
+        files = os.listdir(path=current_dir)
+        self.assertFalse('non_default_file.log' in files)
+        comments = []
+        for item in IteratorFactory(self.youtube_url, limit=30, enabled_logging=True, logfile='non_default_file.log'):
+            comments.append(item)
+        files_after = os.listdir(path=current_dir)
+        self.assertTrue('non_default_file.log' in files_after)
 
 
 if __name__ == '__main__':
