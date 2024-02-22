@@ -30,6 +30,9 @@ class LongDurationShortVideoTests(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setup_done = False
+        self.selector_to_search = '#shorts-inner-container'
+        self.youtube_url = 'https://www.youtube.com/shorts/JfbnpYLe3Ms'
+        self.video_available = True
 
 
     def get_selector(self, driver, css_selector, wait_time=10):
@@ -66,9 +69,6 @@ class LongDurationShortVideoTests(unittest.TestCase):
     def setUp(self):
         if not self.setup_done:
             self.setup_done = True
-            self.selector_to_search = '#shorts-inner-container'
-            self.youtube_url = 'https://www.youtube.com/shorts/JfbnpYLe3Ms'
-            self.video_available = True
             driver = webdriver.Chrome()
             try:
                 driver.get(self.youtube_url)

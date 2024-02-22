@@ -14,29 +14,24 @@ from functools import wraps
 import logging
 import traceback
 import warnings
-import os
-import platform
 
 from iterators.factory import IteratorFactory
-from iterators.implementations.comment_iterator import CommentIterator
-from iterators.implementations.youtube_shorts_iterator import YoutubeShortsIterator
 from iterators.iterlist import IteratorAsList
-from tests.youtube_shorts.test_short_duration_tests import ShortDurationShortVideoTests
+from tests.youtube_shorts.test_long_duration_tests import LongDurationShortVideoTests
 
 
 
-
-class ShortDurationRegularVideoTests(ShortDurationShortVideoTests):
+class LongDurationLongVideoTests(LongDurationShortVideoTests):
     '''
-        ShortDurationRegularVideoTests(self, *args, **kwargs)
-        A class with tests that take less time to run (i.e. tests that parse 0, 30 or 100 comments, tests that specify
-        to scrape for comments for only 30 seconds, 1 minute, etc.)
+        LongDurationLongVideoTests(self, *args, **kwargs)
+        A class with tests that take longer to run (i.e. tests that parse 500 or 1000 comments, tests that specify
+        to scrape for 30 minutes or an hour, etc.)
     '''
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setup_done = False
         self.selector_to_search = '#above-the-fold #title h1'
-        self.youtube_url = 'https://www.youtube.com/watch?v=okIwFBdbEOc'
+        self.youtube_url = 'https://www.youtube.com/watch?v=0e3GPea1Tyg'
         self.video_available = True
 
 
