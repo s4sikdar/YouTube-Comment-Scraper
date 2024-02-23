@@ -74,14 +74,14 @@ Arguments supported:
 	Otherwise, you have to move the executable to a directory that is included in your PATH environment variable.
 
 Examples:
-./setup -h 					# Prints this help message
-./setup -e dirname				# Specifies the virtual environment directory name to be "dirname"
-./setup -n					# disable caching
-./setup -c					# print color messages
-./setup -c -n -e dependencies			# disable caching, sets the virtual environment directory name to be "dependencies", and enables color messaging
-./setup						# sets the virtual environment directory to be the default: "virtual_env_dependencies" (and continues from there)
-./setup -f dependencies.txt			# sets the dependency text file to be used to be "dependencies.txt". All else is default.
-./setup -e dirname -d				# Specifies the virtual environment directory name to be "dirname", and downloads and stores the latest chromedriver in ${HOME}/bin/.
+./env_setup -h 					# Prints this help message
+./env_setup -e dirname				# Specifies the virtual environment directory name to be "dirname"
+./env_setup -n					# disable caching
+./env_setup -c					# print color messages
+./env_setup -c -n -e dependencies			# disable caching, sets the virtual environment directory name to be "dependencies", and enables color messaging
+./env_setup						# sets the virtual environment directory to be the default: "virtual_env_dependencies" (and continues from there)
+./env_setup -f dependencies.txt			# sets the dependency text file to be used to be "dependencies.txt". All else is default.
+./env_setup -e dirname -d				# Specifies the virtual environment directory name to be "dirname", and downloads and stores the latest chromedriver in ${HOME}/bin/.
 EOF
 }
 
