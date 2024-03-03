@@ -98,7 +98,7 @@ def main():
         '-c', '--configfile', type=str, default=None,
         help=(
             'The name of a JSON file containing JSON objects representing videos to scrape comments for. '
-            'See search_items.json to see how the structure of the JSON should be.'
+            'See the README.md file to see how the structure of the JSON should be.'
         )
     )
     arguments = parser.parse_args()

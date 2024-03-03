@@ -45,8 +45,29 @@ Arguments taken:
 					comments (1000+ comments).
 
   -c FILENAME, --configfile FILENAME	The name of a JSON file containing JSON objects representing videos
-					to scrape comments for. See search_items.json in the repository to
-					see how the structure of the JSON should be.
+					to scrape comments for. An example of how the structure of the JSON
+					should be is shown below.
+					{
+						"videos": [
+							{
+								"url": "https://www.youtube.com/shorts/7uctTsKeLdM",
+								"output": "comments.json",
+								"enabled_logging": true,
+								"logfile": "debug.log",
+								"limit": 500000,
+								"minutes": 30
+							},
+							{
+								"url": "https://www.youtube.com/watch?v=1qG_FQbTZ3U",
+								"output": "basketball_video.json",
+								"enabled_logging": true,
+								"logfile": "basketball_video.log",
+								"limit": 500000,
+								"buffer": true,
+								"minutes": 30
+							}
+						]
+					}
 ```
 ### Setup steps
 1. Ensure you have git bash installed.
