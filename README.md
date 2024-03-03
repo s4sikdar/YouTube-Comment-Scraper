@@ -43,6 +43,10 @@ Arguments taken:
 					and immediately write it to the json file. This is
 					highly recommended for videos with large numbers of
 					comments (1000+ comments).
+
+  -c FILENAME, --configfile FILENAME	The name of a JSON file containing JSON objects representing videos
+					to scrape comments for. See search_items.json in the repository to
+					see how the structure of the JSON should be.
 ```
 ### Setup steps
 1. Ensure you have git bash installed.

@@ -2,6 +2,7 @@
 virtual_env_dependencies/**
 **/__pycache__/**
 comments.json
+search_items.json
 *.txt
 *.log
 *.html

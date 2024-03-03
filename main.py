@@ -38,6 +38,16 @@ def valid_arguments(argument_parser):
         file=sys.stderr, flush=True
         )
         return False
+    url = argument_parser.url
+    configfile = argument_parser.configfile
+    if not (url or configfile):
+        print((
+            'You must specify a url with a YouTube video for the scraper to parse (with the --url argument), or you must specify '
+            'a configuration file with the --configfile argument.'
+            ),
+            file=sys.stderr, flush=True
+        )
+        return False
     return True
 
 
@@ -52,7 +62,7 @@ def main():
         '-l', '--limit', type=int, default=None, help='the maximum number of comments we will scrape'
     )
     parser.add_argument(
-        '--url', type=str, default=None, required=True, help='the YouTube video url for the video you want to scrape (should be available)'
+        '--url', type=str, default=None, required=False, help='the YouTube video url for the video you want to scrape (should be available)'
     )
     parser.add_argument(
         '--pattern', type=str, default=None,
@@ -84,6 +94,13 @@ def main():
         ),
         action='store_true'
     )
+    parser.add_argument(
+        '-c', '--configfile', type=str, default=None,
+        help=(
+            'The name of a JSON file containing JSON objects representing videos to scrape comments for. '
+            'See search_items.json to see how the structure of the JSON should be.'
+        )
+    )
     arguments = parser.parse_args()
     if not valid_arguments(arguments):
         exit(1)
@@ -92,15 +109,32 @@ def main():
     }
     kwargs = vars(arguments)
     url = kwargs.pop('url')
+    config_file = kwargs.pop('configfile')
     output = kwargs.pop('output')
     buffer = kwargs.pop('buffer')
-    with open(output, 'w') as output_file:
-        if not buffer:
-            for item in IteratorFactory(url, **kwargs):
-                comments['comments'].append(item)
-            output_file.write(json.dumps(comments))
-        else:
-            json.dump(IteratorAsList(IteratorFactory(url, **kwargs)), output_file)
+    if not config_file:
+        with open(output, 'w') as output_file:
+            if not buffer:
+                for item in IteratorFactory(url, **kwargs):
+                    comments['comments'].append(item)
+                output_file.write(json.dumps(comments))
+            else:
+                json.dump(IteratorAsList(IteratorFactory(url, **kwargs)), output_file)
+    else:
+        with open(config_file) as configurations:
+            settings = json.load(configurations)
+            for video_info in settings['videos']:
+                url = video_info.pop('url')
+                output = video_info.pop('output')
+                buffer = video_info.get('buffer')
+                with open(output, 'w') as output_file:
+                    if not buffer:
+                        for item in IteratorFactory(url, **video_info):
+                            comments['comments'].append(item)
+                        output_file.write(json.dumps(comments))
+                    else:
+                        video_info.pop('buffer')
+                        json.dump(IteratorAsList(IteratorFactory(url, **video_info)), output_file)
 
 
 if __name__ == '__main__':
