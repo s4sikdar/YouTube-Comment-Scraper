@@ -15,13 +15,14 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from functools import wraps
 import logging
 import traceback
+from iterators.implementations.abstract_base import ABCIterator
 
 
 SECONDS_PER_MINUTE = 60
 SECONDS_PER_HOUR = 3600
 
 
-class YoutubeShortsIterator:
+class YoutubeShortsIterator(ABCIterator):
     '''
         YoutubeShortsIterator(video_url, limit=10, pattern=None, hours=0, minutes=0, seconds=0, enabled_logging=False, logfile='debug.log') -> Iterator
         A class that provides an interface to iterate over youtube comments.
